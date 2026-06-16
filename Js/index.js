@@ -269,7 +269,7 @@ function handleSubmitAnswer() {
         state.score += POINTS_PER_CORRECT;
         state.correctAnswers += 1;
         state.currentQuestion += 1;
-        setFeedback('🎉 Wonderful! You matched the scrolls exactly!', 'success');
+        setFeedback('Wonderful! You matched the verse exactly!', 'success');
         updateScoreboard();
         const nextAction = () => {
             if (state.currentQuestion >= MAX_QUESTIONS) {
