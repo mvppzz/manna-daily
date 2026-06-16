@@ -5,7 +5,7 @@
   src: url("../fonts/Ancient Medium.ttf") format('truetype');
   font-weight: normal;
   font-style: normal;
-  font-display: swap;  /*tells browser to show text instantly after a fall(?)*/
+  font-display: swap;
 }
 
 @font-face {
@@ -16,100 +16,411 @@
   font-display: swap;
 }
 
-button#about-button{
-  background-image: url("");
-  position: absolute; /*okkk i get so this disregards the container class i put (fixed also i think does this but like what the freak like it aint updating TT*/
-  top: 25px; /**/
-  left: 25px;
+:root {
+  --background: #f3f5e6;
+  --card: #ffffff;
+  --primary: #243b6b;
+  --secondary: #ffdd00;
+  --text: #202124;
+  --muted: #5a5a5a;
+  --success: #2f7a3e;
+  --warning: #bb6b00;
+  --danger: #b22222;
+  --surface-shadow: rgba(0, 0, 0, 0.08);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-	background-color: #f3f5e6;
-	margin: 0; 
-	padding: 0;
-	min-height: 100vh;
-	max-width: 1200px;
-	width: 90%;
-	margin: 0 auto;
-	box-sizing: border-box;
+  background-color: var(--background);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  width: 100%;
+  font-family: 'Roboto Mono', monospace;
+  color: var(--text);
+}
+
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px clamp(16px, 4vw, 48px);
+  text-align: center;
 }
 
 a {
-  font-family: "Roboto Mono", monospace;
-  font-weight: 900;
-  color: black;
+  color: var(--text);
   text-decoration: none;
 }
 
-
-/* Dfault button */
-
-button#default-button:hover {
-  filter: brightness(1.2);
-  box-shadow: rgba(0, 0, 0, 0.2) 0px 4px 8px;
-  transition: 0.2s ease-in-out;
-  transform: scale(1.05);
+.screen {
+  width: 100%;
 }
 
-
-button#default-button {
- background-color: rgb(36, 59, 107);
-  font-family: 'Roboto Mono', monospace;
-  color: rgb(243, 245, 230);
-  border-radius: 80px;
-  padding: 15px 30px;
-  font-size: 1.75rem;
-  font-weight: normal;
-  cursor: pointer;
-  padding-left: 60px;
-  padding-right: 60px;
-  transition: 0.2s ease-in-out;
+.hidden {
+  display: none !important;
 }
+
+.about-button {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(255, 221, 0, 0.95);
+  color: #000;
+  font-weight: 700;
+  z-index: 2;
+}
+
+.home-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.logo {
+  width: min(280px, 100%);
+  height: auto;
+}
+
+h1 {
+  margin: 0;
+  font-family: 'Ancient', serif;
+  color: var(--primary);
+  font-size: clamp(3rem, 5vw, 4.5rem);
+}
+
+h2 {
+  margin: 0;
+  font-family: 'Veritas AE', serif;
+  color: var(--primary);
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+}
+
+.tagline {
+  margin: 8px 0 0;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.home-actions,
+.buttons-row,
+.save-score-form,
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.primary-button,
+.secondary-button,
 .coffee-link {
-  display: inline-block; /* Allows vertical margins and padding */
-  margin-top: 200px; /*Space from the top */
-  padding: 10px 20px;
-  background-color: #FFDD00;
-  color: #000000;
-  text-decoration: none;
+  border: none;
   border-radius: 80px;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primary-button {
+  background-color: var(--primary);
+  color: #f3f5e6;
+  padding: 16px 28px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.primary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.primary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  background-color: #ffffff;
+  color: var(--primary);
+  padding: 14px 24px;
+  border: 2px solid var(--primary);
+  font-weight: 700;
+}
+
+.secondary-button:hover {
+  box-shadow: 0 12px 24px rgba(36, 59, 107, 0.12);
+}
+
+.coffee-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 24px;
+  background-color: var(--secondary);
+  color: #000;
   font-weight: 900;
-  transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
-/* use this for my <div>'s */
-.container {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 0 clamp(16px, 5vw, 64px);
+.verse-card,
+.status-card,
+.summary-card,
+.leaderboard-card,
+.save-score-section,
+.modal-panel {
+  background: var(--card);
+  border-radius: 24px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.06);
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.status-panel {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.status-card {
+  min-width: 120px;
+  padding: 16px 20px;
+  text-align: left;
+}
+
+.status-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+.verse-card {
+  padding: 28px 24px;
+  text-align: left;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.verse-card p {
+  margin: 0;
+  font-family: 'Lexicon', serif;
+  line-height: 1.6;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.hint-text,
+.feedback-text,
+.save-message {
+  margin: 16px 0 0;
+  font-size: 0.98rem;
+  color: var(--muted);
+}
+
+.feedback-text.success {
+  color: var(--success);
+}
+
+.feedback-text.warning {
+  color: var(--warning);
+}
+
+.feedback-text.error {
+  color: var(--danger);
+}
+
+.inputs-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 24px 0 16px;
+}
+
+.select-input,
+.reference-inputs input {
+  border: 2px solid rgba(36, 59, 107, 0.15);
+  border-radius: 22px;
+  padding: 14px 18px;
+  font-size: 1rem;
+  outline: none;
+  min-width: 180px;
+}
+
+.select-input {
+  min-width: 240px;
+}
+
+.reference-inputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border: 2px solid rgba(36, 59, 107, 0.15);
+  border-radius: 22px;
+  min-width: 160px;
+}
+
+.reference-inputs input {
+  width: 72px;
   text-align: center;
-  line-height: 25px;
 }
 
-.element {
-  margin-left: auto;
-  margin-right: auto;
-
+.results-summary {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 24px 0;
 }
 
-.coffee-link:hover {
-  background-color: #ffea00;
-  transform: scale(1.05);
+.summary-card {
+  padding: 20px;
+  text-align: left;
 }
 
-h1 {margin-bottom: 12px;}
-.logo {margin: 20px 0;}
-button {margin-top: 20px;}
-
-h2, h3, h4, h5, h6 {
-	font-family: 'Lexicon';
+.summary-card p {
+  margin: 0 0 10px;
+  color: var(--muted);
 }
 
-
-/* Game screen stuf */
-#game-screen {
-  display: none;
+.summary-card strong {
+  font-size: 1.75rem;
 }
 
+.save-score-section {
+  text-align: left;
+  padding: 22px;
+  margin-bottom: 24px;
+}
 
+.save-score-form {
+  margin-top: 14px;
+  align-items: center;
+}
 
+.save-score-form input {
+  flex: 1;
+  min-width: 180px;
+  padding: 14px 16px;
+  border: 2px solid rgba(36, 59, 107, 0.15);
+  border-radius: 24px;
+  font-size: 1rem;
+}
+
+.leaderboard-card {
+  padding: 22px;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.leaderboard-card h2 {
+  margin-top: 0;
+}
+
+.leaderboard-table-wrap {
+  overflow-x: auto;
+}
+
+#leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 540px;
+}
+
+#leaderboard-table th,
+#leaderboard-table td {
+  border-bottom: 1px solid rgba(36, 59, 107, 0.11);
+  padding: 12px 10px;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+#leaderboard-table th {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+#leaderboard-table tbody tr:hover {
+  background: rgba(36, 59, 107, 0.05);
+}
+
+.go-home-button-wrap {
+  margin-top: 12px;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: rgba(29, 37, 58, 0.55);
+  padding: 24px;
+  z-index: 10;
+}
+
+.modal-panel {
+  width: min(100%, 440px);
+  padding: 26px 28px;
+  text-align: left;
+}
+
+.modal-panel h2 {
+  margin-top: 0;
+}
+
+.modal-panel p {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+@media (max-width: 640px) {
+  .game-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .status-panel {
+    justify-content: space-between;
+  }
+
+  .inputs-row {
+    flex-direction: column;
+  }
+
+  .reference-inputs,
+  .select-input,
+  .save-score-form {
+    width: 100%;
+  }
+
+  .save-score-form {
+    flex-direction: column;
+  }
+
+  .save-score-form input,
+  .save-score-form button {
+    width: 100%;
+  }
+
+  .home-actions,
+  .buttons-row,
+  .modal-actions {
+    flex-direction: column;
+  }
+}

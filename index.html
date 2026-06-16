@@ -1,134 +1,198 @@
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>MannaDaily</title>
-	<link rel="icon" type="image/png" href="MannaDailyLogoTab.png">
-	<link rel="stylesheet" href="Css/stylestuf.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MannaDaily</title>
+    <link rel="icon" type="image/png" href="MannaDailyLogoTab.png">
+    <link rel="stylesheet" href="Css/stylestuf.css">
 </head>
 
-<body class="container" >
-	
-	<div id="main-menu"> <!--Main Menu-->
-	<a href="About.html" class="about-button">
-		About
-	</a>
-	<div>
-		<h4 style="margin-top: 50px; font-size: 20px;">Daily Bible Verse Quizzes</h4>
-	</div>
-	<div style="text-align: center;">
-		<img src= "MannaDailyLogo.png" width="200" height="110">
-	</div>
-	<h1 style="font-family: 'Ancient'; color: #243b6b; font-size: 100px; font-weight: normal; line-height: 1px"> MannaDaily</h1>
-	
-	<h2 style="font-family: 'Veritas AE'; color:#243b6b"><i><br>Do you know your verses?</i></h2>
+<body class="container">
+    <div id="main-menu" class="screen screen-home">
+        <a href="About.html" class="about-button">About</a>
+        <div class="home-panel">
+            <img src="MannaDailyLogo.png" alt="MannaDaily logo" class="logo">
+            <h1>MannaDaily</h1>
+            <h2>Do you know your verses?</h2>
+            <p class="tagline">Daily Bible Verse Quizzes</p>
+            <div class="home-actions">
+                <button id="default-button" class="primary-button">Play Today's Game</button>
+                <a href="https://buymeacoffee.com/mannadaily" class="coffee-link">Buy Me Some Nesquick?</a>
+            </div>
+            <p class="home-date"></p>
+        </div>
+    </div>
 
-	<br><br><br><br><br><br><br> <!-- breaks just to see example; fix later looks ugly -->
-	<h3 style="text-align: center">Tuesday, June 9, 2026</h3>
-	<button id="default-button" style="display: block; margin: 20px auto; padding: 10px 20px; cursor: pointer;">Play Today's Game</button>
-	
-	<div style="text-align: center">
-		<a href="https://buymeacoffee.com/mannadaily" class="coffee-link">Buy Me Some Nesquick?</a> <!--put a coffe mug here-->
-	</div>
-	</div>
+    <div id="game-screen" class="screen hidden">
+        <div class="game-header">
+            <div class="status-panel">
+                <div class="status-card">
+                    <span class="status-label">Score</span>
+                    <strong id="score-display">0</strong>
+                </div>
+                <div class="status-card">
+                    <span class="status-label">Question</span>
+                    <strong><span id="question-number">1</span> / 10</strong>
+                </div>
+            </div>
+            <button id="quit-button" class="secondary-button">Quit Game</button>
+        </div>
 
-	<div id="game-screen"> <!--Game-->
-		<p id="verse-display" style="font-family:'Lexicon'"> "Verse text will be here"</p>
+        <div class="verse-card">
+            <p id="verse-display">Verse text will appear here once the game starts.</p>
+        </div>
+        <p id="hint-text" class="hint-text">Choose a book, chapter, and verse to submit your answer.</p>
 
-		<select id="book-select"> <!--ok so this is how u do drop down menu-->
-			<option value="">--Book of the Bible--</option>
-				<optgroup label="Old Testament"> <!--list Books old testament-->
-					<option value="Genesis">Genesis</option>
-					<option value="Exodus">Exodus</option>
-					<option value="Leviticus">Leviticus</option>
-					<option value ="Numbers">Numbers</option>
-					<option value="Deuteronomy">Deuteronomy</option>
-					<option value="Joshua">Joshua</option>
-					<option value="Judges">Judges</option>
-					<option value="Ruth">Ruth</option>
-					<option value="1 Samuel">1 Samuel</option>
-					<option value="2 Samuel">2 Samuel</option>
-					<option value="1 Kings">1 Kings</option>
-					<option value="2 Kings">2 Kings</option>
-					<option value="1 Chronicles">1 Chronicles</option>
-					<option value="2 Chronicles">2 Chronicles</option>
-					<option value="Ezra">Ezra</option>
-					<option value="Nehemiah">Nehemiah</option>
-					<option value="Esther">Esther</option>
-					<option value="Job">Job</option>
-					<option value="Psalms">Psalms</option>
-					<option value="Proverbs">Proverbs</option>
-					<option value="Ecclesiastes">Ecclesiastes</option>
-					<option value="Song of Solomon">Song of Solomon</option>
-					<option value="Isaiah">Isaiah</option>
-					<option value="Jeremiah">Jeremiah</option>
-					<option value="Lamentations">Lamentations</option>
-					<option value="Ezekiel">Ezekiel</option>
-					<option value="Daniel">Daniel</option>
-					<option value="Hosea">Hosea</option>
-					<option value="Joel">Joel</option>
-					<option value="Amos">Amos</option>
-					<option value="Obadiah">Obadiah</option>
-					<option value="Jonah">Jonah</option>
-					<option value="Micah">Micah</option>
-					<option value="Nahum">Nahum</option>
-					<option value="Habakkuk">Habakkuk</option>
-					<option value="Zephaniah">Zephaniah</option>
-					<option value="Haggai">Haggai</option>
-					<option value="Zechariah">Zechariah</option>
-					<option value="Malachi">Malachi</option>				
-				</optgroup>
-				<optgroup label="New Testament"> <!--Books of the new testi-->
-					<option value="Matthew">Matthew</option>
-					<option value="Mark">Mark</option>
-					<option value="Luke">Luke</option>
-					<option value="John">John</option>
-					<option value="Acts">Acts</option>
-					<option value="Romans">Romans</option>
-					<option value="1 Corinthians">1 Corinthians</option>
-					<option value="2 Corinthians">2 Corinthians</option>
-					<option value="Galatians">Galatians</option>
-					<option value="Ephesians">Ephesians</option>
-					<option value="Phillipians">Phillipians</option>
-					<option value="Colossians">Colossians</option>
-					<option value="1 Thessalonians">1 Thessalonians</option>
-					<option value="2 Thessalonians">2 Thessalonians</option>
-					<option value="1 Timothy">1 Timothy</option>
-					<option value="2 Timothy">2 Timothy</option>
-					<option value="Titus">Titus</option>
-					<option value="Philemon">Philemon</option>
-					<option value="Hebrews">Hebrews</option>
-					<option value="James">James</option>
-					<option value="1 Peter">1 Peter</option>
-					<option value="2 Peter">2 Peter</option>
-					<option value="1 John">1 John</option>
-					<option value="2 John">2 John</option>
-					<option value="3 John">3 John</option>
-					<option value="Jude">Jude</option>
-					<option value="Revelation">Revelation</option>
+        <div class="inputs-row">
+            <select id="book-select" class="select-input">
+                <option value="">--Book of the Bible--</option>
+                <optgroup label="Old Testament">
+                    <option value="Genesis">Genesis</option>
+                    <option value="Exodus">Exodus</option>
+                    <option value="Leviticus">Leviticus</option>
+                    <option value="Numbers">Numbers</option>
+                    <option value="Deuteronomy">Deuteronomy</option>
+                    <option value="Joshua">Joshua</option>
+                    <option value="Judges">Judges</option>
+                    <option value="Ruth">Ruth</option>
+                    <option value="1 Samuel">1 Samuel</option>
+                    <option value="2 Samuel">2 Samuel</option>
+                    <option value="1 Kings">1 Kings</option>
+                    <option value="2 Kings">2 Kings</option>
+                    <option value="1 Chronicles">1 Chronicles</option>
+                    <option value="2 Chronicles">2 Chronicles</option>
+                    <option value="Ezra">Ezra</option>
+                    <option value="Nehemiah">Nehemiah</option>
+                    <option value="Esther">Esther</option>
+                    <option value="Job">Job</option>
+                    <option value="Psalms">Psalms</option>
+                    <option value="Proverbs">Proverbs</option>
+                    <option value="Ecclesiastes">Ecclesiastes</option>
+                    <option value="Song of Solomon">Song of Solomon</option>
+                    <option value="Isaiah">Isaiah</option>
+                    <option value="Jeremiah">Jeremiah</option>
+                    <option value="Lamentations">Lamentations</option>
+                    <option value="Ezekiel">Ezekiel</option>
+                    <option value="Daniel">Daniel</option>
+                    <option value="Hosea">Hosea</option>
+                    <option value="Joel">Joel</option>
+                    <option value="Amos">Amos</option>
+                    <option value="Obadiah">Obadiah</option>
+                    <option value="Jonah">Jonah</option>
+                    <option value="Micah">Micah</option>
+                    <option value="Nahum">Nahum</option>
+                    <option value="Habakkuk">Habakkuk</option>
+                    <option value="Zephaniah">Zephaniah</option>
+                    <option value="Haggai">Haggai</option>
+                    <option value="Zechariah">Zechariah</option>
+                    <option value="Malachi">Malachi</option>
+                </optgroup>
+                <optgroup label="New Testament">
+                    <option value="Matthew">Matthew</option>
+                    <option value="Mark">Mark</option>
+                    <option value="Luke">Luke</option>
+                    <option value="John">John</option>
+                    <option value="Acts">Acts</option>
+                    <option value="Romans">Romans</option>
+                    <option value="1 Corinthians">1 Corinthians</option>
+                    <option value="2 Corinthians">2 Corinthians</option>
+                    <option value="Galatians">Galatians</option>
+                    <option value="Ephesians">Ephesians</option>
+                    <option value="Philippians">Philippians</option>
+                    <option value="Colossians">Colossians</option>
+                    <option value="1 Thessalonians">1 Thessalonians</option>
+                    <option value="2 Thessalonians">2 Thessalonians</option>
+                    <option value="1 Timothy">1 Timothy</option>
+                    <option value="2 Timothy">2 Timothy</option>
+                    <option value="Titus">Titus</option>
+                    <option value="Philemon">Philemon</option>
+                    <option value="Hebrews">Hebrews</option>
+                    <option value="James">James</option>
+                    <option value="1 Peter">1 Peter</option>
+                    <option value="2 Peter">2 Peter</option>
+                    <option value="1 John">1 John</option>
+                    <option value="2 John">2 John</option>
+                    <option value="3 John">3 John</option>
+                    <option value="Jude">Jude</option>
+                    <option value="Revelation">Revelation</option>
+                </optgroup>
+            </select>
+            <div id="reference-inputs" class="reference-inputs">
+                <input type="number" id="chapter-input" placeholder="Chapter" min="1" autocomplete="off">
+                <span>:</span>
+                <input type="number" id="verse-input" placeholder="Verse" min="1" autocomplete="off">
+            </div>
+        </div>
 
+        <div class="buttons-row">
+            <button id="submit-button" class="primary-button" disabled>Submit Answer</button>
+        </div>
+        <p id="feedback-text" class="feedback-text"></p>
+    </div>
 
-				</optgroup>
-		</select>
-		<div id="reference-inputs" style="margin-top: 10px;">
-        <input type="number" id="chapter-input" placeholder="Chapter" min="1" style="width: 70px;">
-        :
-        <input type="number" id="verse-input" placeholder="Verse" min="1" style="width: 70px;">
-		</div>
+    <div id="results-screen" class="screen hidden">
+        <h1>Game Over</h1>
+        <div class="results-summary">
+            <div class="summary-card">
+                <p class="summary-label">Final Score</p>
+                <strong id="final-score">0</strong>
+            </div>
+            <div class="summary-card">
+                <p class="summary-label">Correct</p>
+                <strong id="correct-count">0</strong>
+            </div>
+            <div class="summary-card">
+                <p class="summary-label">Incorrect</p>
+                <strong id="incorrect-count">0</strong>
+            </div>
+            <div class="summary-card">
+                <p class="summary-label">Accuracy</p>
+                <strong id="accuracy-percentage">0%</strong>
+            </div>
+        </div>
 
-    <br><br>
-    <button id="submit-button">Submit Answer</button>
+        <div class="save-score-section">
+            <h2>Save your score</h2>
+            <div class="save-score-form">
+                <input id="player-name" type="text" placeholder="Enter your name">
+                <button id="submit-score-button" class="primary-button">Submit Score</button>
+            </div>
+            <p id="score-save-message" class="save-message"></p>
+        </div>
 
-	</div>
+        <div class="leaderboard-card">
+            <h2>Leaderboard</h2>
+            <div class="leaderboard-table-wrap">
+                <table id="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Name</th>
+                            <th>Score</th>
+                            <th>Correct</th>
+                            <th>Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
 
-	<div> <!--Leaderboard-->
+        <button id="go-home-button" class="secondary-button">Go Home</button>
+    </div>
 
-		
-	</div>
+    <div id="quit-modal" class="modal hidden">
+        <div class="modal-panel">
+            <h2>Quit Game?</h2>
+            <p>Are you sure you want to quit the game? Your current progress will be lost.</p>
+            <div class="modal-actions">
+                <button id="confirm-quit" class="secondary-button">Yes</button>
+                <button id="cancel-quit" class="secondary-button">No</button>
+            </div>
+        </div>
+    </div>
 
-
-
-<script src="Js/index.js"></script>
+    <script src="Js/index.js"></script>
 </body>
 </html>
