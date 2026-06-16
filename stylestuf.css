@@ -1,0 +1,115 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+
+@font-face {
+  font-family: "Ancient";
+  src: url("../fonts/Ancient Medium.ttf") format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;  /*tells browser to show text instantly after a fall(?)*/
+}
+
+@font-face {
+  font-family: "Lexicon";
+  src: url("../fonts/Lexicon No1 Roman A Med.ttf") format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+button#about-button{
+  background-image: url("");
+  position: absolute; /*okkk i get so this disregards the container class i put (fixed also i think does this but like what the freak like it aint updating TT*/
+  top: 25px; /**/
+  left: 25px;
+}
+
+body {
+	background-color: #f3f5e6;
+	margin: 0; 
+	padding: 0;
+	min-height: 100vh;
+	max-width: 1200px;
+	width: 90%;
+	margin: 0 auto;
+	box-sizing: border-box;
+}
+
+a {
+  font-family: "Roboto Mono", monospace;
+  font-weight: 900;
+  color: black;
+  text-decoration: none;
+}
+
+
+/* Dfault button */
+
+button#default-button:hover {
+  filter: brightness(1.2);
+  box-shadow: rgba(0, 0, 0, 0.2) 0px 4px 8px;
+  transition: 0.2s ease-in-out;
+  transform: scale(1.05);
+}
+
+
+button#default-button {
+ background-color: rgb(36, 59, 107);
+  font-family: 'Roboto Mono', monospace;
+  color: rgb(243, 245, 230);
+  border-radius: 80px;
+  padding: 15px 30px;
+  font-size: 1.75rem;
+  font-weight: normal;
+  cursor: pointer;
+  padding-left: 60px;
+  padding-right: 60px;
+  transition: 0.2s ease-in-out;
+}
+.coffee-link {
+  display: inline-block; /* Allows vertical margins and padding */
+  margin-top: 200px; /*Space from the top */
+  padding: 10px 20px;
+  background-color: #FFDD00;
+  color: #000000;
+  text-decoration: none;
+  border-radius: 80px;
+  font-weight: 900;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+/* use this for my <div>'s */
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 5vw, 64px);
+  text-align: center;
+  line-height: 25px;
+}
+
+.element {
+  margin-left: auto;
+  margin-right: auto;
+
+}
+
+.coffee-link:hover {
+  background-color: #ffea00;
+  transform: scale(1.05);
+}
+
+h1 {margin-bottom: 12px;}
+.logo {margin: 20px 0;}
+button {margin-top: 20px;}
+
+h2, h3, h4, h5, h6 {
+	font-family: 'Lexicon';
+}
+
+
+/* Game screen stuf */
+#game-screen {
+  display: none;
+}
+
+
+

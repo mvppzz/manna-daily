@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>MannaDaily</title>
+	<link rel="icon" type="image/png" href="MannaDailyLogoTab.png">
+	<link rel="stylesheet" href="Css/stylestuf.css">
+</head>
+
+<body class="container" >
+	
+	<div id="main-menu"> <!--Main Menu-->
+	<a href="About.html" class="about-button">
+		About
+	</a>
+	<div>
+		<h4 style="margin-top: 50px; font-size: 20px;">Daily Bible Verse Quizzes</h4>
+	</div>
+	<div style="text-align: center;">
+		<img src= "MannaDailyLogo.png" width="200" height="110">
+	</div>
+	<h1 style="font-family: 'Ancient'; color: #243b6b; font-size: 100px; font-weight: normal; line-height: 1px"> MannaDaily</h1>
+	
+	<h2 style="font-family: 'Veritas AE'; color:#243b6b"><i><br>Do you know your verses?</i></h2>
+
+	<br><br><br><br><br><br><br> <!-- breaks just to see example; fix later looks ugly -->
+	<h3 style="text-align: center">Tuesday, June 9, 2026</h3>
+	<button id="default-button" style="display: block; margin: 20px auto; padding: 10px 20px; cursor: pointer;">Play Today's Game</button>
+	
+	<div style="text-align: center">
+		<a href="https://buymeacoffee.com/mannadaily" class="coffee-link">Buy Me Some Nesquick?</a> <!--put a coffe mug here-->
+	</div>
+	</div>
+
+	<div id="game-screen"> <!--Game-->
+		<p id="verse-display" style="font-family:'Lexicon'"> "Verse text will be here"</p>
+
+		<select id="book-select"> <!--ok so this is how u do drop down menu-->
+			<option value="">--Book of the Bible--</option>
+				<optgroup label="Old Testament"> <!--list Books old testament-->
+					<option value="Genesis">Genesis</option>
+					<option value="Exodus">Exodus</option>
+					<option value="Leviticus">Leviticus</option>
+					<option value ="Numbers">Numbers</option>
+					<option value="Deuteronomy">Deuteronomy</option>
+					<option value="Joshua">Joshua</option>
+					<option value="Judges">Judges</option>
+					<option value="Ruth">Ruth</option>
+					<option value="1 Samuel">1 Samuel</option>
+					<option value="2 Samuel">2 Samuel</option>
+					<option value="1 Kings">1 Kings</option>
+					<option value="2 Kings">2 Kings</option>
+					<option value="1 Chronicles">1 Chronicles</option>
+					<option value="2 Chronicles">2 Chronicles</option>
+					<option value="Ezra">Ezra</option>
+					<option value="Nehemiah">Nehemiah</option>
+					<option value="Esther">Esther</option>
+					<option value="Job">Job</option>
+					<option value="Psalms">Psalms</option>
+					<option value="Proverbs">Proverbs</option>
+					<option value="Ecclesiastes">Ecclesiastes</option>
+					<option value="Song of Solomon">Song of Solomon</option>
+					<option value="Isaiah">Isaiah</option>
+					<option value="Jeremiah">Jeremiah</option>
+					<option value="Lamentations">Lamentations</option>
+					<option value="Ezekiel">Ezekiel</option>
+					<option value="Daniel">Daniel</option>
+					<option value="Hosea">Hosea</option>
+					<option value="Joel">Joel</option>
+					<option value="Amos">Amos</option>
+					<option value="Obadiah">Obadiah</option>
+					<option value="Jonah">Jonah</option>
+					<option value="Micah">Micah</option>
+					<option value="Nahum">Nahum</option>
+					<option value="Habakkuk">Habakkuk</option>
+					<option value="Zephaniah">Zephaniah</option>
+					<option value="Haggai">Haggai</option>
+					<option value="Zechariah">Zechariah</option>
+					<option value="Malachi">Malachi</option>				
+				</optgroup>
+				<optgroup label="New Testament"> <!--Books of the new testi-->
+					<option value="Matthew">Matthew</option>
+					<option value="Mark">Mark</option>
+					<option value="Luke">Luke</option>
+					<option value="John">John</option>
+					<option value="Acts">Acts</option>
+					<option value="Romans">Romans</option>
+					<option value="1 Corinthians">1 Corinthians</option>
+					<option value="2 Corinthians">2 Corinthians</option>
+					<option value="Galatians">Galatians</option>
+					<option value="Ephesians">Ephesians</option>
+					<option value="Phillipians">Phillipians</option>
+					<option value="Colossians">Colossians</option>
+					<option value="1 Thessalonians">1 Thessalonians</option>
+					<option value="2 Thessalonians">2 Thessalonians</option>
+					<option value="1 Timothy">1 Timothy</option>
+					<option value="2 Timothy">2 Timothy</option>
+					<option value="Titus">Titus</option>
+					<option value="Philemon">Philemon</option>
+					<option value="Hebrews">Hebrews</option>
+					<option value="James">James</option>
+					<option value="1 Peter">1 Peter</option>
+					<option value="2 Peter">2 Peter</option>
+					<option value="1 John">1 John</option>
+					<option value="2 John">2 John</option>
+					<option value="3 John">3 John</option>
+					<option value="Jude">Jude</option>
+					<option value="Revelation">Revelation</option>
+
+
+				</optgroup>
+		</select>
+		<div id="reference-inputs" style="margin-top: 10px;">
+        <input type="number" id="chapter-input" placeholder="Chapter" min="1" style="width: 70px;">
+        :
+        <input type="number" id="verse-input" placeholder="Verse" min="1" style="width: 70px;">
+		</div>
+
+    <br><br>
+    <button id="submit-button">Submit Answer</button>
+
+	</div>
+
+	<div> <!--Leaderboard-->
+
+		
+	</div>
+
+
+
+<script src="Js/home.js"></script>
+</body>
+</html>
