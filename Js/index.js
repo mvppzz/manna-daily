@@ -28,7 +28,8 @@ const goHomeButton = document.getElementById('go-home-button');
 
 const MAX_QUESTIONS = 10;
 const MAX_ATTEMPTS = 3;
-const MAX_FETCH_RETRIES = 4;
+const MAX_FETCH_RETRIES = 6;
+const FETCH_TIMEOUT_MS = 10000;
 const POINTS_PER_CORRECT = 10;
 const LEADERBOARD_KEY = 'mannaDailyLeaderboard';
 
@@ -190,16 +191,20 @@ function fetchVerse() {
     const randomBook = books[Math.floor(Math.random() * books.length)];
     const randomChapter = Math.floor(Math.random() * 3) + 1;
     const randomVerse = Math.floor(Math.random() * 5) + 1;
-    const apiUrl = `https://bible-api.com/${randomBook}+${randomChapter}:${randomVerse}?translation=kjv`;
+    const apiUrl = `https://bible-api.com/${encodeURIComponent(randomBook)}+${randomChapter}:${randomVerse}?translation=kjv`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-    fetch(apiUrl)
+    fetch(apiUrl, { signal: controller.signal })
         .then(response => {
+            clearTimeout(timeoutId);
             if (!response.ok) {
                 throw new Error(`API Error: Status ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
+            clearTimeout(timeoutId);
             if (!data.verses || data.verses.length === 0) {
                 throw new Error('No verse data found in response');
             }
@@ -212,13 +217,24 @@ function fetchVerse() {
             };
             verseDisplay.textContent = `"${state.currentVerse.text.trim()}"`;
             hintText.textContent = 'Submit your best guess for this verse.';
+            setFeedback('Ready to answer.', 'neutral');
             setSubmitState(true);
         })
         .catch(error => {
-            console.warn('Verse load failed:', error.message);
+            clearTimeout(timeoutId);
+            const isAbort = error.name === 'AbortError';
+            const isRateLimited = error.message.includes('Status 429') || error.message.includes('Status 403');
+            console.warn('Verse load failed:', error.message || 'Request aborted');
+
+            if (isAbort || isRateLimited) {
+                applyLocalVerse();
+                return;
+            }
+
             state.fetchRetries = (state.fetchRetries || 0) + 1;
             if (state.fetchRetries < MAX_FETCH_RETRIES) {
                 verseDisplay.textContent = 'Unable to load a verse right now. Retrying...';
+                setFeedback('Trying another verse reference...', 'warning');
                 setTimeout(fetchVerse, 1200);
                 return;
             }
