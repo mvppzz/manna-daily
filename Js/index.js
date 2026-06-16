@@ -28,6 +28,7 @@ const goHomeButton = document.getElementById('go-home-button');
 
 const MAX_QUESTIONS = 10;
 const MAX_ATTEMPTS = 3;
+const MAX_FETCH_RETRIES = 4;
 const POINTS_PER_CORRECT = 10;
 const LEADERBOARD_KEY = 'mannaDailyLeaderboard';
 
@@ -42,6 +43,14 @@ const books = [
     'Ephesians', 'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians',
     '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter',
     '2 Peter', '1 John', '2 John', '3 John', 'Jude', 'Revelation'
+];
+
+const localVerses = [
+    { book: 'John', chapter: 3, verse: 16, text: 'For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.' },
+    { book: 'Psalm', chapter: 23, verse: 1, text: 'The Lord is my shepherd; I shall not want.' },
+    { book: 'Philippians', chapter: 4, verse: 13, text: 'I can do all things through Christ which strengtheneth me.' },
+    { book: 'Proverbs', chapter: 3, verse: 5, text: 'Trust in the LORD with all thine heart; and lean not unto thine own understanding.' },
+    { book: 'Romans', chapter: 8, verse: 28, text: 'And we know that all things work together for good to them that love God, to them who are the called according to his purpose.' },
 ];
 
 const defaultLeaderboard = [
@@ -168,6 +177,7 @@ function loadNextQuestion() {
     }
     state.attemptsLeft = MAX_ATTEMPTS;
     state.currentVerse = null;
+    state.fetchRetries = 0;
     resetInputs();
     updateScoreboard();
     verseDisplay.textContent = 'Loading the next verse...';
@@ -206,9 +216,28 @@ function fetchVerse() {
         })
         .catch(error => {
             console.warn('Verse load failed:', error.message);
-            verseDisplay.textContent = 'Unable to load a verse right now. Retrying...';
-            setTimeout(fetchVerse, 1200);
+            state.fetchRetries = (state.fetchRetries || 0) + 1;
+            if (state.fetchRetries < MAX_FETCH_RETRIES) {
+                verseDisplay.textContent = 'Unable to load a verse right now. Retrying...';
+                setTimeout(fetchVerse, 1200);
+                return;
+            }
+            applyLocalVerse();
         });
+}
+
+function applyLocalVerse() {
+    const verse = localVerses[Math.floor(Math.random() * localVerses.length)];
+    state.currentVerse = {
+        text: verse.text,
+        book: verse.book,
+        chapter: verse.chapter,
+        verse: verse.verse
+    };
+    verseDisplay.textContent = `"${state.currentVerse.text.trim()}"`;
+    hintText.textContent = 'Submit your best guess for this verse.';
+    setFeedback('Offline verse loaded. Please answer using the verse reference.', 'success');
+    setSubmitState(true);
 }
 
 function handleSubmitAnswer() {
