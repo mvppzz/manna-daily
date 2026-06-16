@@ -127,6 +127,7 @@ h2 {
 }
 
 .primary-button {
+  font-family: 'Roboto Mono', monospace;
   background-color: var(--primary);
   color: #f3f5e6;
   padding: 16px 28px;
