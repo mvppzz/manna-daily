@@ -171,6 +171,12 @@ h2 {
   background-color: var(--secondary);
   color: #000;
   font-weight: 900;
+  
+}
+
+.coffee-link:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
 }
 
 .verse-card,
