@@ -29,7 +29,8 @@ const goHomeButton = document.getElementById('go-home-button');
 const MAX_QUESTIONS = 10;
 const MAX_ATTEMPTS = 3;
 const MAX_FETCH_RETRIES = 6;
-const FETCH_TIMEOUT_MS = 10000;
+const FETCH_TIMEOUT_MS = 3000;
+const FALLBACK_FETCH_DELAY_MS = 800;
 const POINTS_PER_CORRECT = 10;
 const LEADERBOARD_KEY = 'mannaDailyLeaderboard';
 
@@ -193,22 +194,43 @@ function fetchVerse() {
     const randomVerse = Math.floor(Math.random() * 5) + 1;
     const apiUrl = `https://bible-api.com/${encodeURIComponent(randomBook)}+${randomChapter}:${randomVerse}?translation=kjv`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    let isSettled = false;
+
+    const clearFetchTimers = () => {
+        clearTimeout(fallbackTimer);
+        clearTimeout(timeoutId);
+    };
+
+    const fallbackTimer = setTimeout(() => {
+        if (isSettled) return;
+        isSettled = true;
+        controller.abort();
+        applyLocalVerse();
+    }, FALLBACK_FETCH_DELAY_MS);
+
+    const timeoutId = setTimeout(() => {
+        if (isSettled) return;
+        controller.abort();
+    }, FETCH_TIMEOUT_MS);
 
     fetch(apiUrl, { signal: controller.signal })
         .then(response => {
-            clearTimeout(timeoutId);
+            if (isSettled) return null;
             if (!response.ok) {
                 throw new Error(`API Error: Status ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            clearTimeout(timeoutId);
+            if (!data || isSettled) {
+                return;
+            }
             if (!data.verses || data.verses.length === 0) {
                 throw new Error('No verse data found in response');
             }
             const verseInfo = data.verses[0];
+            isSettled = true;
+            clearFetchTimers();
             state.currentVerse = {
                 text: verseInfo.text,
                 book: data.book_name,
@@ -221,12 +243,15 @@ function fetchVerse() {
             setSubmitState(true);
         })
         .catch(error => {
-            clearTimeout(timeoutId);
+            if (isSettled) return;
+            isSettled = true;
+            clearFetchTimers();
             const isAbort = error.name === 'AbortError';
+            const isNetworkIssue = error.message.includes('Failed to fetch') || error.message.includes('NetworkError');
             const isRateLimited = error.message.includes('Status 429') || error.message.includes('Status 403');
             console.warn('Verse load failed:', error.message || 'Request aborted');
 
-            if (isAbort || isRateLimited) {
+            if (isAbort || isNetworkIssue || isRateLimited) {
                 applyLocalVerse();
                 return;
             }
@@ -235,7 +260,7 @@ function fetchVerse() {
             if (state.fetchRetries < MAX_FETCH_RETRIES) {
                 verseDisplay.textContent = 'Unable to load a verse right now. Retrying...';
                 setFeedback('Trying another verse reference...', 'warning');
-                setTimeout(fetchVerse, 1200);
+                setTimeout(fetchVerse, 800);
                 return;
             }
             applyLocalVerse();
