@@ -28,10 +28,10 @@ const goHomeButton = document.getElementById('go-home-button');
 
 const MAX_QUESTIONS = 10;
 const MAX_ATTEMPTS = 3;
-const MAX_FETCH_RETRIES = 2;
-const FETCH_TIMEOUT_MS = 3000;
-const FALLBACK_FETCH_DELAY_MS = 600;
-const FETCH_RETRY_DELAY_MS = 500;
+const MAX_FETCH_RETRIES = 1;
+const FETCH_TIMEOUT_MS = 1500;
+const FALLBACK_FETCH_DELAY_MS = 300;
+const FETCH_RETRY_DELAY_MS = 300;
 const POINTS_PER_CORRECT = 10;
 const LEADERBOARD_KEY = 'mannaDailyLeaderboard';
 
