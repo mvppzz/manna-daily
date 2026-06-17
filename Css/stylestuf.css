@@ -41,6 +41,11 @@ body {
   color: var(--text);
 }
 
+body.container h3 {
+  font-family: 'Lexicon', serif;
+  line-height: 1.7;
+}
+
 .container {
   max-width: 760px;
   margin: 0 auto;
