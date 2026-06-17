@@ -28,9 +28,10 @@ const goHomeButton = document.getElementById('go-home-button');
 
 const MAX_QUESTIONS = 10;
 const MAX_ATTEMPTS = 3;
-const MAX_FETCH_RETRIES = 6;
+const MAX_FETCH_RETRIES = 2;
 const FETCH_TIMEOUT_MS = 3000;
-const FALLBACK_FETCH_DELAY_MS = 800;
+const FALLBACK_FETCH_DELAY_MS = 600;
+const FETCH_RETRY_DELAY_MS = 500;
 const POINTS_PER_CORRECT = 10;
 const LEADERBOARD_KEY = 'mannaDailyLeaderboard';
 
@@ -252,17 +253,20 @@ function fetchVerse() {
             console.warn('Verse load failed:', error.message || 'Request aborted');
 
             if (isAbort || isNetworkIssue || isRateLimited) {
+                setFeedback('The verse service is slow; using a backup verse instead.', 'warning');
                 applyLocalVerse();
                 return;
             }
 
             state.fetchRetries = (state.fetchRetries || 0) + 1;
-            if (state.fetchRetries < MAX_FETCH_RETRIES) {
-                verseDisplay.textContent = 'Unable to load a verse right now. Retrying...';
-                setFeedback('Trying another verse reference...', 'warning');
-                setTimeout(fetchVerse, 800);
+            if (state.fetchRetries <= MAX_FETCH_RETRIES) {
+                verseDisplay.textContent = `Still loading a verse... retrying (${state.fetchRetries}/${MAX_FETCH_RETRIES})`;
+                setFeedback(`Retrying verse lookup (${state.fetchRetries}/${MAX_FETCH_RETRIES})...`, 'warning');
+                setTimeout(fetchVerse, FETCH_RETRY_DELAY_MS);
                 return;
             }
+
+            setFeedback('The verse service is still unavailable; using a backup verse.', 'warning');
             applyLocalVerse();
         });
 }
