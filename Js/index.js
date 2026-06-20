@@ -23,7 +23,10 @@ const accuracyPercentage = document.getElementById('accuracy-percentage');
 const playerNameInput = document.getElementById('player-name');
 const submitScoreButton = document.getElementById('submit-score-button');
 const scoreSaveMessage = document.getElementById('score-save-message');
-const leaderboardTableBody = document.querySelector('#leaderboard-table tbody');
+const leaderboardTableBody = document.getElementById('leaderboard-table-body');
+const leaderboardCurrentRow = document.getElementById('leaderboard-current-row');
+const currentPlayerRank = document.getElementById('current-player-rank');
+const currentPlayerScore = document.getElementById('current-player-score');
 const goHomeButton = document.getElementById('go-home-button');
 
 const MAX_QUESTIONS = 10;
@@ -105,10 +108,10 @@ function loadSettings() {
         try {
             state.leaderboard = JSON.parse(saved);
         } catch {
-            state.leaderboard = [...defaultLeaderboard];
+            state.leaderboard = [];
         }
     } else {
-        state.leaderboard = [...defaultLeaderboard];
+        state.leaderboard = [];
     }
     renderLeaderboard();
 }
@@ -120,6 +123,7 @@ function saveLeaderboard() {
 function renderLeaderboard() {
     const sorted = [...state.leaderboard].sort((a, b) => b.score - a.score);
     leaderboardTableBody.innerHTML = '';
+
     sorted.forEach((player, index) => {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -131,6 +135,28 @@ function renderLeaderboard() {
         `;
         leaderboardTableBody.appendChild(row);
     });
+
+    const currentPlayer = state.leaderboard[state.leaderboard.length - 1];
+    if (!currentPlayer) {
+        leaderboardCurrentRow.classList.add('hidden');
+        return;
+    }
+
+    const currentIndex = sorted.findIndex(
+        player =>
+            player.name === currentPlayer.name &&
+            player.score === currentPlayer.score &&
+            player.correct === currentPlayer.correct
+    );
+
+    const visibleTopRows = 10;
+    if (currentIndex >= visibleTopRows) {
+        leaderboardCurrentRow.classList.remove('hidden');
+        currentPlayerRank.textContent = `#${currentIndex + 1}`;
+        currentPlayerScore.textContent = `${currentPlayer.score} pts`;
+    } else {
+        leaderboardCurrentRow.classList.add('hidden');
+    }
 }
 
 function resetGameState() {
@@ -342,17 +368,22 @@ function savePlayerScore() {
     }
 
     const totalAnswered = state.correctAnswers + state.incorrectAnswers;
-    const accuracy = totalAnswered > 0 ? `${Math.round((state.correctAnswers / totalAnswered) * 100)}%` : '0%';
-    state.leaderboard.push({
+    const accuracy = totalAnswered > 0
+        ? `${Math.round((state.correctAnswers / totalAnswered) * 100)}%`
+        : '0%';
+
+    const newEntry = {
         name: playerName,
         score: state.score,
         correct: state.correctAnswers,
         accuracy,
         total: totalAnswered
-    });
+    };
 
+    state.leaderboard.push(newEntry);
     saveLeaderboard();
     renderLeaderboard();
+
     scoreSaveMessage.textContent = 'Your score was saved successfully!';
     scoreSaveMessage.style.color = 'var(--success)';
     playerNameInput.value = '';
