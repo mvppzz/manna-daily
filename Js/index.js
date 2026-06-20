@@ -234,7 +234,7 @@ function fetchVerse() {
             clearFetchTimers();
             state.currentVerse = {
                 text: verseInfo.text,
-                book: data.book_name,
+                book: verseInfo.book_name || data.book_name || '',
                 chapter: parseInt(verseInfo.chapter, 10),
                 verse: parseInt(verseInfo.verse, 10)
             };
@@ -306,7 +306,8 @@ function handleSubmitAnswer() {
     }
 
     setSubmitState(false);
-    const bookCorrect = userBook.toLowerCase() === state.currentVerse.book.toLowerCase();
+    const currentBook = (state.currentVerse.book || '').toString().trim();
+    const bookCorrect = userBook.toLowerCase() === currentBook.toLowerCase();
     const chapterCorrect = userChapter === state.currentVerse.chapter;
     const verseCorrect = userVerse === state.currentVerse.verse;
 
