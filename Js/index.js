@@ -30,7 +30,6 @@ const MAX_QUESTIONS = 10;
 const MAX_ATTEMPTS = 3;
 const MAX_FETCH_RETRIES = 1;
 const FETCH_TIMEOUT_MS = 1500;
-const FALLBACK_FETCH_DELAY_MS = 300;
 const FETCH_RETRY_DELAY_MS = 300;
 const POINTS_PER_CORRECT = 10;
 const LEADERBOARD_KEY = 'mannaDailyLeaderboard';
@@ -46,14 +45,6 @@ const books = [
     'Ephesians', 'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians',
     '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter',
     '2 Peter', '1 John', '2 John', '3 John', 'Jude', 'Revelation'
-];
-
-const localVerses = [
-    { book: 'John', chapter: 3, verse: 16, text: 'For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.' },
-    { book: 'Psalm', chapter: 23, verse: 1, text: 'The Lord is my shepherd; I shall not want.' },
-    { book: 'Philippians', chapter: 4, verse: 13, text: 'I can do all things through Christ which strengtheneth me.' },
-    { book: 'Proverbs', chapter: 3, verse: 5, text: 'Trust in the LORD with all thine heart; and lean not unto thine own understanding.' },
-    { book: 'Romans', chapter: 8, verse: 28, text: 'And we know that all things work together for good to them that love God, to them who are the called according to his purpose.' },
 ];
 
 const defaultLeaderboard = [
@@ -197,18 +188,6 @@ function fetchVerse() {
     const controller = new AbortController();
     let isSettled = false;
 
-    const clearFetchTimers = () => {
-        clearTimeout(fallbackTimer);
-        clearTimeout(timeoutId);
-    };
-
-    const fallbackTimer = setTimeout(() => {
-        if (isSettled) return;
-        isSettled = true;
-        controller.abort();
-        applyLocalVerse();
-    }, FALLBACK_FETCH_DELAY_MS);
-
     const timeoutId = setTimeout(() => {
         if (isSettled) return;
         controller.abort();
@@ -231,7 +210,7 @@ function fetchVerse() {
             }
             const verseInfo = data.verses[0];
             isSettled = true;
-            clearFetchTimers();
+            clearTimeout(timeoutId);
             state.currentVerse = {
                 text: verseInfo.text,
                 book: verseInfo.book_name || data.book_name || '',
@@ -246,43 +225,25 @@ function fetchVerse() {
         .catch(error => {
             if (isSettled) return;
             isSettled = true;
-            clearFetchTimers();
+            clearTimeout(timeoutId);
             const isAbort = error.name === 'AbortError';
             const isNetworkIssue = error.message.includes('Failed to fetch') || error.message.includes('NetworkError');
             const isRateLimited = error.message.includes('Status 429') || error.message.includes('Status 403');
             console.warn('Verse load failed:', error.message || 'Request aborted');
 
-            if (isAbort || isNetworkIssue || isRateLimited) {
-                setFeedback('The verse service is slow; using a backup verse instead.', 'warning');
-                applyLocalVerse();
-                return;
-            }
-
             state.fetchRetries = (state.fetchRetries || 0) + 1;
-            if (state.fetchRetries <= MAX_FETCH_RETRIES) {
-                verseDisplay.textContent = `Still loading a verse... retrying (${state.fetchRetries}/${MAX_FETCH_RETRIES})`;
-                setFeedback(`Retrying verse lookup (${state.fetchRetries}/${MAX_FETCH_RETRIES})...`, 'warning');
+            if (state.fetchRetries <= MAX_FETCH_RETRIES || isAbort || isNetworkIssue || isRateLimited) {
+                verseDisplay.textContent = 'Still loading a verse...';
+                setFeedback('The verse service is temporarily unavailable. Retrying...', 'warning');
                 setTimeout(fetchVerse, FETCH_RETRY_DELAY_MS);
                 return;
             }
 
-            setFeedback('The verse service is still unavailable; using a backup verse.', 'warning');
-            applyLocalVerse();
+            verseDisplay.textContent = 'Unable to load a verse right now.';
+            hintText.textContent = 'Please try starting the game again.';
+            setFeedback('The verse service is unavailable right now. Please try again.', 'error');
+            setSubmitState(false);
         });
-}
-
-function applyLocalVerse() {
-    const verse = localVerses[Math.floor(Math.random() * localVerses.length)];
-    state.currentVerse = {
-        text: verse.text,
-        book: verse.book,
-        chapter: verse.chapter,
-        verse: verse.verse
-    };
-    verseDisplay.textContent = `"${state.currentVerse.text.trim()}"`;
-    hintText.textContent = 'Submit your best guess for this verse.';
-    setFeedback('Offline verse loaded. Please answer using the verse reference.', 'success');
-    setSubmitState(true);
 }
 
 function handleSubmitAnswer() {
