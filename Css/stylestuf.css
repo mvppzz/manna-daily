@@ -466,3 +466,61 @@ h2 {
     flex-direction: column;
   }
 }
+
+.home-title {
+    font-size: 100px;
+}
+
+@media (max-width: 600px) {
+    .home-title {
+        font-size: 44px;
+    }
+
+    .logo {
+        max-width: 120px;
+        height: auto;
+    }
+
+    .game-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .status-panel {
+        width: 100%;
+    }
+
+    .inputs-row {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .select-input,
+    .reference-inputs,
+    .reference-inputs input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .primary-button,
+    .secondary-button {
+        width: 100%;
+    }
+
+    .results-summary {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .save-score-form {
+        flex-direction: column;
+    }
+
+    .leaderboard-table-wrap {
+        overflow-x: auto;
+    }
+
+    .modal-panel {
+        width: 90%;
+        box-sizing: border-box;
+    }
+}
