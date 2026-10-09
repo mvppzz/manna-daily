@@ -17,12 +17,17 @@
         <div class="home-panel">
             <p class="tagline">Daily Bible Verse Quizzes</p>
             <img src="MannaDailyLogo.png" alt="MannaDaily logo" class="logo">
-            <h1 class = "home-title">MannaDaily</h1>
+            <h1 class="home-title">MannaDaily</h1>
             <h2>Do you know your verses?</h2>
             <div class="home-actions">
                 <p class="home-date"></p>
                 <button id="default-button" class="primary-button">Play Today's Game</button>
                 <a href="https://buymeacoffee.com/mannadaily" class="coffee-link">Buy Me Some Nesquick?</a>
+                <div class="auth-bar">
+                    <span id="auth-status" class="auth-status"></span>
+                    <button id="home-login-button" class="secondary-button">Log in / Sign up</button>
+                    <button id="home-logout-button" class="secondary-button hidden">Log out</button>
+                </div>
             </div>
         </div>
     </div>
@@ -157,15 +162,23 @@
 
         <div class="save-score-section">
             <h2>Save your score</h2>
-            <div class="save-score-form">
-                <input id="player-name" type="text" placeholder="Enter your name">
-                <button id="submit-score-button" class="primary-button">Submit Score</button>
+            <div id="save-logged-in" class="hidden">
+                <p id="save-player-label" class="save-message"></p>
+                <div class="buttons-row">
+                    <button id="submit-score-button" class="primary-button">Submit Score</button>
+                </div>
+            </div>
+            <div id="save-logged-out">
+                <p class="save-message">Log in to save your score to today's leaderboard.</p>
+                <div class="buttons-row">
+                    <button id="results-login-button" class="primary-button">Log in / Sign up</button>
+                </div>
             </div>
             <p id="score-save-message" class="save-message"></p>
         </div>
 
         <div class="leaderboard-card">
-            <h2>Leaderboard</h2>
+            <h2>Today's Leaderboard</h2>
             <div class="leaderboard-table-wrap">
                 <table id="leaderboard-table">
                     <thead>
@@ -194,6 +207,25 @@
         <button id="go-home-button" class="secondary-button">Go Home</button>
     </div>
 
+    <div id="auth-screen" class="screen hidden">
+        <h1>Log in</h1>
+        <div class="save-score-section auth-card">
+            <h2>Your account</h2>
+            <div class="auth-form">
+                <input id="auth-name" type="text" maxlength="20" placeholder="Display name (new accounts only)" autocomplete="nickname">
+                <input id="auth-email" type="email" placeholder="Email" autocomplete="email">
+                <input id="auth-password" type="password" placeholder="Password (6+ characters)" autocomplete="current-password">
+                <div class="buttons-row">
+                    <button id="auth-login-button" class="primary-button">Log in</button>
+                    <button id="auth-signup-button" class="secondary-button">Create account</button>
+                </div>
+                <button id="auth-reset-button" class="text-button" type="button">Forgot password?</button>
+            </div>
+            <p id="auth-message" class="feedback-text"></p>
+        </div>
+        <button id="auth-back-button" class="secondary-button">Back</button>
+    </div>
+
     <div id="quit-modal" class="modal hidden">
         <div class="modal-panel">
             <h2>Quit Game?</h2>
@@ -205,6 +237,6 @@
         </div>
     </div>
 
-    <script src="Js/index.js"></script>
+    <script type="module" src="Js/index.js"></script>
 </body>
 </html>

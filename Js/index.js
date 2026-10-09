@@ -1,7 +1,31 @@
+import { auth, db } from "./firebase.js";
+import {
+    onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    updateProfile,
+    sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
+import {
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    setDoc,
+    query,
+    where,
+    orderBy,
+    limit,
+    getCountFromServer,
+    serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+
 const homeDate = document.querySelector('.home-date');
 const mainMenu = document.getElementById('main-menu');
 const gameScreen = document.getElementById('game-screen');
 const resultsScreen = document.getElementById('results-screen');
+const authScreen = document.getElementById('auth-screen');
 const quitModal = document.getElementById('quit-modal');
 const defaultButton = document.getElementById('default-button');
 const quitButton = document.getElementById('quit-button');
@@ -20,14 +44,28 @@ const finalScore = document.getElementById('final-score');
 const correctCount = document.getElementById('correct-count');
 const incorrectCount = document.getElementById('incorrect-count');
 const accuracyPercentage = document.getElementById('accuracy-percentage');
-const playerNameInput = document.getElementById('player-name');
 const submitScoreButton = document.getElementById('submit-score-button');
 const scoreSaveMessage = document.getElementById('score-save-message');
+const saveLoggedIn = document.getElementById('save-logged-in');
+const saveLoggedOut = document.getElementById('save-logged-out');
+const savePlayerLabel = document.getElementById('save-player-label');
+const resultsLoginButton = document.getElementById('results-login-button');
 const leaderboardTableBody = document.getElementById('leaderboard-table-body');
 const leaderboardCurrentRow = document.getElementById('leaderboard-current-row');
 const currentPlayerRank = document.getElementById('current-player-rank');
 const currentPlayerScore = document.getElementById('current-player-score');
 const goHomeButton = document.getElementById('go-home-button');
+const authStatus = document.getElementById('auth-status');
+const homeLoginButton = document.getElementById('home-login-button');
+const homeLogoutButton = document.getElementById('home-logout-button');
+const authNameInput = document.getElementById('auth-name');
+const authEmailInput = document.getElementById('auth-email');
+const authPasswordInput = document.getElementById('auth-password');
+const authLoginButton = document.getElementById('auth-login-button');
+const authSignupButton = document.getElementById('auth-signup-button');
+const authResetButton = document.getElementById('auth-reset-button');
+const authBackButton = document.getElementById('auth-back-button');
+const authMessage = document.getElementById('auth-message');
 
 const MAX_QUESTIONS = 10;
 const MAX_ATTEMPTS = 3;
@@ -35,7 +73,8 @@ const MAX_FETCH_RETRIES = 1;
 const FETCH_TIMEOUT_MS = 1500;
 const FETCH_RETRY_DELAY_MS = 300;
 const POINTS_PER_CORRECT = 10;
-const LEADERBOARD_KEY = 'mannaDailyLeaderboard';
+const LEADERBOARD_SIZE = 10;
+const MAX_NAME_LENGTH = 20;
 
 const books = [
     'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges',
@@ -50,13 +89,6 @@ const books = [
     '2 Peter', '1 John', '2 John', '3 John', 'Jude', 'Revelation'
 ];
 
-const defaultLeaderboard = [
-    { name: 'Miriam', score: 88, correct: 9, accuracy: '90%', total: 10 },
-    { name: 'Caleb', score: 74, correct: 8, accuracy: '80%', total: 10 },
-    { name: 'Noah', score: 62, correct: 7, accuracy: '70%', total: 10 },
-    { name: 'Abigail', score: 50, correct: 6, accuracy: '60%', total: 10 }
-];
-
 const state = {
     currentQuestion: 0,
     score: 0,
@@ -64,9 +96,10 @@ const state = {
     incorrectAnswers: 0,
     attemptsLeft: MAX_ATTEMPTS,
     currentVerse: null,
-    gameActive: false,
-    leaderboard: []
+    gameActive: false
 };
+
+let authReturnScreen = 'home';
 
 function updateHomeDate() {
     if (!homeDate) return;
@@ -74,10 +107,18 @@ function updateHomeDate() {
     homeDate.textContent = new Date().toLocaleDateString('en-US', options);
 }
 
+function getTodayKey() {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${month}-${day}`;
+}
+
 function showScreen(screen) {
     mainMenu.classList.toggle('hidden', screen !== 'home');
     gameScreen.classList.toggle('hidden', screen !== 'game');
     resultsScreen.classList.toggle('hidden', screen !== 'results');
+    authScreen.classList.toggle('hidden', screen !== 'auth');
 }
 
 function setSubmitState(enabled) {
@@ -102,60 +143,233 @@ function resetInputs() {
     if (verseInput) verseInput.value = '';
 }
 
-function loadSettings() {
-    const saved = localStorage.getItem(LEADERBOARD_KEY);
-    if (saved) {
-        try {
-            state.leaderboard = JSON.parse(saved);
-        } catch {
-            state.leaderboard = [];
-        }
-    } else {
-        state.leaderboard = [];
+function setAuthMessage(message, type = 'neutral') {
+    authMessage.textContent = message;
+    authMessage.classList.remove('success', 'warning', 'error');
+    if (type) authMessage.classList.add(type);
+}
+
+function setAuthBusy(busy) {
+    authLoginButton.disabled = busy;
+    authSignupButton.disabled = busy;
+    authResetButton.disabled = busy;
+}
+
+function getAuthErrorMessage(error) {
+    switch (error.code) {
+        case 'auth/invalid-email':
+            return 'That email address does not look right.';
+        case 'auth/missing-password':
+            return 'Please enter your password.';
+        case 'auth/invalid-credential':
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+            return 'Email or password is incorrect.';
+        case 'auth/email-already-in-use':
+            return 'An account with that email already exists. Try logging in.';
+        case 'auth/weak-password':
+            return 'Password must be at least 6 characters.';
+        case 'auth/too-many-requests':
+            return 'Too many attempts. Please wait a bit and try again.';
+        case 'auth/network-request-failed':
+            return 'Network problem. Check your connection and try again.';
+        case 'auth/unauthorized-domain':
+            return 'This website address is not authorized in Firebase yet.';
+        default:
+            return 'Something went wrong. Please try again.';
     }
-    renderLeaderboard();
 }
 
-function saveLeaderboard() {
-    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(state.leaderboard));
+function updateAuthUI(user) {
+    const loggedIn = Boolean(user);
+    const name = loggedIn ? (user.displayName || 'Player') : '';
+    authStatus.textContent = loggedIn ? `Signed in as ${name}` : 'Playing as a guest';
+    homeLoginButton.classList.toggle('hidden', loggedIn);
+    homeLogoutButton.classList.toggle('hidden', !loggedIn);
+    saveLoggedIn.classList.toggle('hidden', !loggedIn);
+    saveLoggedOut.classList.toggle('hidden', loggedIn);
+    savePlayerLabel.textContent = loggedIn ? `Saving as ${name}` : '';
+    if (!resultsScreen.classList.contains('hidden')) {
+        renderLeaderboard();
+    }
 }
 
-function renderLeaderboard() {
-    const sorted = [...state.leaderboard].sort((a, b) => b.score - a.score);
-    leaderboardTableBody.innerHTML = '';
+function openAuthScreen(returnTo) {
+    authReturnScreen = returnTo;
+    authPasswordInput.value = '';
+    setAuthMessage('', 'neutral');
+    showScreen('auth');
+}
 
-    sorted.forEach((player, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${player.name}</td>
-            <td>${player.score}</td>
-            <td>${player.correct}</td>
-            <td>${player.accuracy}</td>
-        `;
-        leaderboardTableBody.appendChild(row);
-    });
+function finishAuth() {
+    authPasswordInput.value = '';
+    setAuthMessage('', 'neutral');
+    showScreen(authReturnScreen);
+    updateAuthUI(auth.currentUser);
+}
 
-    const currentPlayer = state.leaderboard[state.leaderboard.length - 1];
-    if (!currentPlayer) {
-        leaderboardCurrentRow.classList.add('hidden');
+async function handleLogin() {
+    const email = authEmailInput.value.trim();
+    const password = authPasswordInput.value;
+
+    if (!email || !password) {
+        setAuthMessage('Enter your email and password.', 'warning');
         return;
     }
 
-    const currentIndex = sorted.findIndex(
-        player =>
-            player.name === currentPlayer.name &&
-            player.score === currentPlayer.score &&
-            player.correct === currentPlayer.correct
-    );
+    setAuthBusy(true);
+    setAuthMessage('Logging in...', 'neutral');
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        finishAuth();
+    } catch (error) {
+        console.error('Login failed:', error);
+        setAuthMessage(getAuthErrorMessage(error), 'error');
+    }
+    setAuthBusy(false);
+}
 
-    const visibleTopRows = 10;
-    if (currentIndex >= visibleTopRows) {
+async function handleSignUp() {
+    const name = authNameInput.value.trim();
+    const email = authEmailInput.value.trim();
+    const password = authPasswordInput.value;
+
+    if (!name) {
+        setAuthMessage('Pick a display name for the leaderboard.', 'warning');
+        return;
+    }
+
+    if (name.length > MAX_NAME_LENGTH) {
+        setAuthMessage(`Display name can be at most ${MAX_NAME_LENGTH} characters.`, 'warning');
+        return;
+    }
+
+    if (!email || !password) {
+        setAuthMessage('Enter your email and a password.', 'warning');
+        return;
+    }
+
+    setAuthBusy(true);
+    setAuthMessage('Creating your account...', 'neutral');
+    try {
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(credential.user, { displayName: name });
+        finishAuth();
+    } catch (error) {
+        console.error('Sign up failed:', error);
+        setAuthMessage(getAuthErrorMessage(error), 'error');
+    }
+    setAuthBusy(false);
+}
+
+async function handlePasswordReset() {
+    const email = authEmailInput.value.trim();
+
+    if (!email) {
+        setAuthMessage('Type your email above first, then click Forgot password.', 'warning');
+        return;
+    }
+
+    setAuthBusy(true);
+    try {
+        await sendPasswordResetEmail(auth, email);
+        setAuthMessage('If that email has an account, a reset link is on its way.', 'success');
+    } catch (error) {
+        console.error('Password reset failed:', error);
+        setAuthMessage(getAuthErrorMessage(error), 'error');
+    }
+    setAuthBusy(false);
+}
+
+async function handleLogout() {
+    try {
+        await signOut(auth);
+    } catch (error) {
+        console.error('Logout failed:', error);
+    }
+}
+
+function buildLeaderboardRow(values) {
+    const row = document.createElement('tr');
+    values.forEach(value => {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        row.appendChild(cell);
+    });
+    return row;
+}
+
+function buildMessageRow(message) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 5;
+    cell.textContent = message;
+    row.appendChild(cell);
+    return row;
+}
+
+async function showCurrentPlayerRank(user, today) {
+    try {
+        const myDoc = await getDoc(doc(db, 'scores', `${user.uid}_${today}`));
+        if (!myDoc.exists()) return;
+
+        const myScore = myDoc.data().score;
+        const higherScores = await getCountFromServer(
+            query(
+                collection(db, 'scores'),
+                where('date', '==', today),
+                where('score', '>', myScore)
+            )
+        );
+
+        currentPlayerRank.textContent = `#${higherScores.data().count + 1}`;
+        currentPlayerScore.textContent = `${myScore} pts`;
         leaderboardCurrentRow.classList.remove('hidden');
-        currentPlayerRank.textContent = `#${currentIndex + 1}`;
-        currentPlayerScore.textContent = `${currentPlayer.score} pts`;
-    } else {
-        leaderboardCurrentRow.classList.add('hidden');
+    } catch (error) {
+        console.error('Could not load your rank:', error);
+    }
+}
+
+async function renderLeaderboard() {
+    leaderboardCurrentRow.classList.add('hidden');
+
+    try {
+        const today = getTodayKey();
+        const topQuery = query(
+            collection(db, 'scores'),
+            where('date', '==', today),
+            orderBy('score', 'desc'),
+            limit(LEADERBOARD_SIZE)
+        );
+        const snapshot = await getDocs(topQuery);
+        const user = auth.currentUser;
+        let userInTop = false;
+        const rows = [];
+
+        snapshot.docs.forEach((docSnap, index) => {
+            const player = docSnap.data();
+            if (user && player.uid === user.uid) userInTop = true;
+            rows.push(buildLeaderboardRow([
+                index + 1,
+                player.name,
+                player.score,
+                player.correct,
+                `${player.accuracy}%`
+            ]));
+        });
+
+        if (rows.length === 0) {
+            rows.push(buildMessageRow('No scores yet today. Be the first!'));
+        }
+
+        leaderboardTableBody.replaceChildren(...rows);
+
+        if (user && !userInTop) {
+            await showCurrentPlayerRank(user, today);
+        }
+    } catch (error) {
+        console.error('Leaderboard load failed:', error);
+        leaderboardTableBody.replaceChildren(buildMessageRow('The leaderboard could not be loaded right now.'));
     }
 }
 
@@ -167,6 +381,8 @@ function resetGameState() {
     state.attemptsLeft = MAX_ATTEMPTS;
     state.currentVerse = null;
     state.gameActive = true;
+    scoreSaveMessage.textContent = '';
+    submitScoreButton.disabled = false;
     setSubmitState(false);
     setFeedback('Loading the first verse...', 'neutral');
     resetInputs();
@@ -359,34 +575,50 @@ function confirmQuitGame() {
     state.gameActive = false;
 }
 
-function savePlayerScore() {
-    const playerName = playerNameInput.value.trim();
-    if (!playerName) {
-        scoreSaveMessage.textContent = 'Please enter your name before saving.';
+async function savePlayerScore() {
+    const user = auth.currentUser;
+    if (!user) {
+        scoreSaveMessage.textContent = 'Please log in before saving your score.';
         scoreSaveMessage.style.color = 'var(--danger)';
         return;
     }
 
     const totalAnswered = state.correctAnswers + state.incorrectAnswers;
     const accuracy = totalAnswered > 0
-        ? `${Math.round((state.correctAnswers / totalAnswered) * 100)}%`
-        : '0%';
+        ? Math.round((state.correctAnswers / totalAnswered) * 100)
+        : 0;
+    const today = getTodayKey();
+    const playerName = (user.displayName || 'Player').slice(0, MAX_NAME_LENGTH);
 
-    const newEntry = {
-        name: playerName,
-        score: state.score,
-        correct: state.correctAnswers,
-        accuracy,
-        total: totalAnswered
-    };
+    submitScoreButton.disabled = true;
+    scoreSaveMessage.textContent = 'Saving your score...';
+    scoreSaveMessage.style.color = 'var(--muted)';
 
-    state.leaderboard.push(newEntry);
-    saveLeaderboard();
-    renderLeaderboard();
+    try {
+        await setDoc(doc(db, 'scores', `${user.uid}_${today}`), {
+            uid: user.uid,
+            name: playerName,
+            score: state.score,
+            correct: state.correctAnswers,
+            total: totalAnswered,
+            accuracy,
+            date: today,
+            createdAt: serverTimestamp()
+        });
 
-    scoreSaveMessage.textContent = 'Your score was saved successfully!';
-    scoreSaveMessage.style.color = 'var(--success)';
-    playerNameInput.value = '';
+        scoreSaveMessage.textContent = 'Your score was saved successfully!';
+        scoreSaveMessage.style.color = 'var(--success)';
+        renderLeaderboard();
+    } catch (error) {
+        console.error('Saving score failed:', error);
+        if (error.code === 'permission-denied') {
+            scoreSaveMessage.textContent = 'Only one score can be saved per day, and it looks like you already saved today\'s.';
+        } else {
+            scoreSaveMessage.textContent = 'Your score could not be saved. Please try again.';
+            submitScoreButton.disabled = false;
+        }
+        scoreSaveMessage.style.color = 'var(--danger)';
+    }
 }
 
 function goHome() {
@@ -405,11 +637,21 @@ function attachEventHandlers() {
     submitButton.addEventListener('click', handleSubmitAnswer);
     submitScoreButton.addEventListener('click', savePlayerScore);
     goHomeButton.addEventListener('click', goHome);
+    homeLoginButton.addEventListener('click', () => openAuthScreen('home'));
+    homeLogoutButton.addEventListener('click', handleLogout);
+    resultsLoginButton.addEventListener('click', () => openAuthScreen('results'));
+    authLoginButton.addEventListener('click', handleLogin);
+    authSignupButton.addEventListener('click', handleSignUp);
+    authResetButton.addEventListener('click', handlePasswordReset);
+    authBackButton.addEventListener('click', () => showScreen(authReturnScreen));
+    authPasswordInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') handleLogin();
+    });
 }
 
 function initialize() {
     attachEventHandlers();
-    loadSettings();
+    onAuthStateChanged(auth, updateAuthUI);
     showScreen('home');
 }
 
