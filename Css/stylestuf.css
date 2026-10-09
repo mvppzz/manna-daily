@@ -31,6 +31,11 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  overflow-x: hidden;
+}
+
 body {
   background-color: var(--background);
   margin: 0;
@@ -231,9 +236,13 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .verse-card p {
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   margin: 0;
   font-family: 'Lexicon', serif;
   line-height: 1.6;
@@ -440,13 +449,14 @@ h2 {
 
 @media (max-width: 640px) {
   .container {
-    padding: 72px 16px 16px;
+    padding: 16px;
   }
 
   .about-button {
-    top: 12px;
-    left: 12px;
+    position: static;
+    display: inline-block;
     padding: 8px 14px;
+    margin-bottom: 12px;
   }
 
   .logo {
