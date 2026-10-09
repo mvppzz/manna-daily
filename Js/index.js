@@ -32,6 +32,7 @@ const quitButton = document.getElementById('quit-button');
 const confirmQuit = document.getElementById('confirm-quit');
 const cancelQuit = document.getElementById('cancel-quit');
 const submitButton = document.getElementById('submit-button');
+const skipButton = document.getElementById('skip-button');
 const bookSelect = document.getElementById('book-select');
 const chapterInput = document.getElementById('chapter-input');
 const verseInput = document.getElementById('verse-input');
@@ -123,6 +124,7 @@ function showScreen(screen) {
 
 function setSubmitState(enabled) {
     submitButton.disabled = !enabled;
+    skipButton.disabled = !enabled;
     submitButton.textContent = enabled ? 'Submit Answer' : 'Loading...';
 }
 
@@ -559,6 +561,26 @@ function handleSubmitAnswer() {
     setSubmitState(true);
 }
 
+function handleSkip() {
+    if (!state.gameActive || !state.currentVerse) {
+        setFeedback('Please wait until the verse has loaded.', 'warning');
+        return;
+    }
+
+    setSubmitState(false);
+    state.incorrectAnswers += 1;
+    state.currentQuestion += 1;
+    const skippedAnswer = `${state.currentVerse.book} ${state.currentVerse.chapter}:${state.currentVerse.verse}`;
+    setFeedback(`Skipped. The answer was ${skippedAnswer}.`, 'warning');
+    setTimeout(() => {
+        if (state.currentQuestion >= MAX_QUESTIONS) {
+            endGame();
+        } else {
+            loadNextQuestion();
+        }
+    }, 1800);
+}
+
 function showQuitModal(show) {
     quitModal.classList.toggle('hidden', !show);
 }
@@ -635,6 +657,7 @@ function attachEventHandlers() {
     cancelQuit.addEventListener('click', cancelQuitGame);
     confirmQuit.addEventListener('click', confirmQuitGame);
     submitButton.addEventListener('click', handleSubmitAnswer);
+    skipButton.addEventListener('click', handleSkip);
     submitScoreButton.addEventListener('click', savePlayerScore);
     goHomeButton.addEventListener('click', goHome);
     homeLoginButton.addEventListener('click', () => openAuthScreen('home'));
