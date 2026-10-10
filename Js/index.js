@@ -6,7 +6,8 @@ import {
     signOut, updateProfile,
     sendPasswordResetEmail,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithPopup,
+    linkWithCredential
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 import {
     collection,
@@ -103,6 +104,7 @@ const state = {
 };
 
 let authReturnScreen = 'home';
+let pendingGoogleCredential = null;
 
 function updateHomeDate() {
     if (!homeDate) return;
@@ -171,7 +173,7 @@ function getAuthErrorMessage(error) {
         case 'auth/wrong-password':
             return 'Email or password is incorrect.';
         case 'auth/email-already-in-use':
-            return 'An account with that email already exists. Try logging in.';
+            return 'An account with that email already exists. Try logging in, or use Continue with Google if you signed up that way.';
         case 'auth/weak-password':
             return 'Password must be at least 6 characters.';
         case 'auth/too-many-requests':
@@ -227,7 +229,15 @@ async function handleLogin() {
     setAuthBusy(true);
     setAuthMessage('Logging in...', 'neutral');
     try {
-        await signInWithEmailAndPassword(auth, email, password);
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        if (pendingGoogleCredential) {
+            try {
+                await linkWithCredential(credential.user, pendingGoogleCredential);
+            } catch (linkError) {
+                console.error('Linking Google failed:', linkError);
+            }
+            pendingGoogleCredential = null;
+        }
         finishAuth();
     } catch (error) {
         console.error('Login failed:', error);
@@ -244,7 +254,13 @@ async function handleGoogleLogin() {
         finishAuth();
     } catch (error) {
         console.error('Google login failed:', error);
-        if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        if (error.code === 'auth/account-exists-with-different-credential') {
+            pendingGoogleCredential = GoogleAuthProvider.credentialFromError(error);
+            if (error.customData && error.customData.email) {
+                authEmailInput.value = error.customData.email;
+            }
+            setAuthMessage('You already have an account with this email. Log in with your email and password once, and Google will be connected to it.', 'warning');
+        } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
             setAuthMessage('', 'neutral');
         } else {
             setAuthMessage(getAuthErrorMessage(error), 'error');
