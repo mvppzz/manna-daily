@@ -70,15 +70,45 @@ const authResetButton = document.getElementById('auth-reset-button');
 const authBackButton = document.getElementById('auth-back-button');
 const authMessage = document.getElementById('auth-message');
 const authGoogleButton = document.getElementById('auth-google-button');
+const streakDisplay = document.getElementById('streak-display');
+const roundValueDisplay = document.getElementById('round-value-display');
+const hintButton = document.getElementById('hint-button');
+const hintReveal = document.getElementById('hint-reveal');
+const openProfileButton = document.getElementById('open-profile-button');
+const openSettingsButton = document.getElementById('open-settings-button');
+const profileChipAvatar = document.getElementById('profile-chip-avatar');
+const profileChipName = document.getElementById('profile-chip-name');
+const profileModal = document.getElementById('profile-modal');
+const profileAvatarPreview = document.getElementById('profile-avatar-preview');
+const avatarOptions = document.querySelectorAll('.avatar-option');
+const avatarUploadInput = document.getElementById('avatar-upload');
+const profileNameInput = document.getElementById('profile-name-input');
+const profileSaveButton = document.getElementById('profile-save-button');
+const profileCloseButton = document.getElementById('profile-close-button');
+const profileMessage = document.getElementById('profile-message');
+const settingsModal = document.getElementById('settings-modal');
+const soundVolumeSlider = document.getElementById('sound-volume');
+const musicVolumeSlider = document.getElementById('music-volume');
+const soundVolumeLabel = document.getElementById('sound-volume-label');
+const musicVolumeLabel = document.getElementById('music-volume-label');
+const settingsCloseButton = document.getElementById('settings-close-button');
 
 const MAX_QUESTIONS = 10;
 const MAX_ATTEMPTS = 3;
 const MAX_FETCH_RETRIES = 1;
 const FETCH_TIMEOUT_MS = 1500;
 const FETCH_RETRY_DELAY_MS = 300;
-const POINTS_PER_CORRECT = 10;
 const LEADERBOARD_SIZE = 10;
 const MAX_NAME_LENGTH = 20;
+const BASE_SCORE = 1500;
+const POINTS_LOST_PER_MISS = 500;
+const MAX_HINTS = 3;
+const HINT_COST = 150;
+const NEW_TESTAMENT_START = 39;
+const PROFILE_KEY = 'mannadaily-profile';
+const SETTINGS_KEY = 'mannadaily-settings';
+const AVATAR_SIZE = 128;
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 const books = [
     'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges',
@@ -100,11 +130,109 @@ const state = {
     incorrectAnswers: 0,
     attemptsLeft: MAX_ATTEMPTS,
     currentVerse: null,
-    gameActive: false
+    gameActive: false,
+    streak: 0,
+    hintsUsed: 0
 };
 
 let authReturnScreen = 'home';
 let pendingGoogleCredential = null;
+
+function loadStored(key, defaults) {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return { ...defaults };
+        return { ...defaults, ...JSON.parse(raw) };
+    } catch (error) {
+        console.warn('Could not read saved data:', error);
+        return { ...defaults };
+    }
+}
+
+function saveStored(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+    } catch (error) {
+        console.warn('Could not save data:', error);
+        return false;
+    }
+}
+
+function clampVolume(value, fallback) {
+    const number = Number(value);
+    if (Number.isNaN(number)) return fallback;
+    return Math.min(100, Math.max(0, Math.round(number)));
+}
+
+let draftAvatar = null;
+const profile = loadStored(PROFILE_KEY, { username: '', avatarType: 'emoji', avatarValue: '📖' });
+profile.username = String(profile.username || '').slice(0, MAX_NAME_LENGTH);
+profile.avatarValue = String(profile.avatarValue || '📖');
+
+const savedSettings = loadStored(SETTINGS_KEY, { soundVolume: 70, musicVolume: 50 });
+let soundVolume = clampVolume(savedSettings.soundVolume, 70);
+let musicVolume = clampVolume(savedSettings.musicVolume, 50);
+
+function getCurrentTryNumber() {
+    return MAX_ATTEMPTS - state.attemptsLeft + 1;
+}
+
+function getRoundValue() {
+    const tryValue = BASE_SCORE - (getCurrentTryNumber() - 1) * POINTS_LOST_PER_MISS;
+    const hintPenalty = state.hintsUsed * HINT_COST;
+    return Math.max(0, tryValue - hintPenalty);
+}
+
+function getStreakMultiplier(streak) {
+    if (streak >= 6) return 2.0;
+    if (streak >= 4) return 1.5;
+    if (streak >= 2) return 1.2;
+    return 1;
+}
+
+function getTestament(bookName) {
+    const index = books.findIndex(book => book.toLowerCase() === bookName.toLowerCase());
+    if (index === -1) return null;
+    return index >= NEW_TESTAMENT_START ? 'New Testament' : 'Old Testament';
+}
+
+function showHints() {
+    const lines = [];
+    if (state.hintsUsed >= 1) {
+        const testament = getTestament(state.currentVerse.book);
+        lines.push(testament ? `Hint 1: This verse is in the ${testament}.` : 'Hint 1: This verse is from the Bible.');
+    }
+    if (state.hintsUsed >= 2) {
+        lines.push(`Hint 2: The book is ${state.currentVerse.book}.`);
+    }
+    if (state.hintsUsed >= 3) {
+        lines.push(`Hint 3: The chapter is ${state.currentVerse.chapter}.`);
+    }
+    hintReveal.textContent = lines.join(' ');
+}
+
+function handleHint() {
+    if (!state.gameActive || !state.currentVerse) {
+        setFeedback('Please wait until the verse has loaded.', 'warning');
+        return;
+    }
+    if (state.hintsUsed >= MAX_HINTS) return;
+
+    state.hintsUsed += 1;
+    showHints();
+    updateScoreboard();
+    setFeedback(`Hint used. This verse is now worth ${getRoundValue()} points.`, 'neutral');
+    setSubmitState(true);
+}
+
+function goToNextQuestion() {
+    if (state.currentQuestion >= MAX_QUESTIONS) {
+        endGame();
+    } else {
+        loadNextQuestion();
+    }
+}
 
 function updateHomeDate() {
     if (!homeDate) return;
@@ -129,6 +257,9 @@ function showScreen(screen) {
 function setSubmitState(enabled) {
     submitButton.disabled = !enabled;
     skipButton.disabled = !enabled;
+    hintButton.disabled = !enabled || state.hintsUsed >= MAX_HINTS;
+    const hintsLeft = MAX_HINTS - state.hintsUsed;
+    hintButton.textContent = hintsLeft > 0 ? `Hint (${hintsLeft} left, -${HINT_COST})` : 'No hints left';
     submitButton.textContent = enabled ? 'Submit Answer' : 'Loading...';
 }
 
@@ -141,6 +272,8 @@ function setFeedback(message, type = 'neutral') {
 function updateScoreboard() {
     scoreDisplay.textContent = state.score;
     questionNumber.textContent = Math.min(state.currentQuestion + 1, MAX_QUESTIONS);
+    streakDisplay.textContent = state.streak;
+    roundValueDisplay.textContent = getRoundValue();
 }
 
 function resetInputs() {
@@ -189,9 +322,15 @@ function getAuthErrorMessage(error) {
     }
 }
 
+function getPlayerName(user) {
+    const custom = profile.username.trim();
+    const name = custom || (user && user.displayName) || 'Player';
+    return name.slice(0, MAX_NAME_LENGTH);
+}
+
 function updateAuthUI(user) {
     const loggedIn = Boolean(user);
-    const name = loggedIn ? (user.displayName || 'Player') : '';
+    const name = loggedIn ? getPlayerName(user) : '';
     authStatus.textContent = loggedIn ? `Signed in as ${name}` : 'Playing as a guest';
     homeLoginButton.classList.toggle('hidden', loggedIn);
     homeLogoutButton.classList.toggle('hidden', !loggedIn);
@@ -420,7 +559,10 @@ function resetGameState() {
     state.incorrectAnswers = 0;
     state.attemptsLeft = MAX_ATTEMPTS;
     state.currentVerse = null;
+    state.streak = 0;
+    state.hintsUsed = 0;
     state.gameActive = true;
+    hintReveal.textContent = '';
     scoreSaveMessage.textContent = '';
     submitScoreButton.disabled = false;
     setSubmitState(false);
@@ -452,8 +594,10 @@ function loadNextQuestion() {
         return;
     }
     state.attemptsLeft = MAX_ATTEMPTS;
+    state.hintsUsed = 0;
     state.currentVerse = null;
     state.fetchRetries = 0;
+    hintReveal.textContent = '';
     resetInputs();
     updateScoreboard();
     verseDisplay.textContent = 'Loading the next verse...';
@@ -555,19 +699,26 @@ function handleSubmitAnswer() {
     const verseCorrect = userVerse === state.currentVerse.verse;
 
     if (bookCorrect && chapterCorrect && verseCorrect) {
-        state.score += POINTS_PER_CORRECT;
+        const tryNumber = getCurrentTryNumber();
+        state.streak += 1;
+
+        let multiplier = 1;
+        if (tryNumber === 1) {
+            multiplier = getStreakMultiplier(state.streak);
+        }
+
+        const pointsEarned = Math.round(getRoundValue() * multiplier);
+        state.score += pointsEarned;
         state.correctAnswers += 1;
         state.currentQuestion += 1;
-        setFeedback('Wonderful! You matched the verse exactly!', 'success');
+
+        let message = `Wonderful! +${pointsEarned} points.`;
+        if (multiplier > 1) {
+            message = `Wonderful! +${pointsEarned} points (${multiplier}x streak bonus!)`;
+        }
+        setFeedback(message, 'success');
         updateScoreboard();
-        const nextAction = () => {
-            if (state.currentQuestion >= MAX_QUESTIONS) {
-                endGame();
-            } else {
-                loadNextQuestion();
-            }
-        };
-        setTimeout(nextAction, 1400);
+        setTimeout(goToNextQuestion, 1400);
         return;
     }
 
@@ -576,24 +727,20 @@ function handleSubmitAnswer() {
     if (state.attemptsLeft <= 0) {
         state.incorrectAnswers += 1;
         state.currentQuestion += 1;
+        state.streak = 0;
         const correctAnswer = `${state.currentVerse.book} ${state.currentVerse.chapter}:${state.currentVerse.verse}`;
-        setFeedback(`No attempts left. The answer was ${correctAnswer}.`, 'error');
-        const nextAction = () => {
-            if (state.currentQuestion >= MAX_QUESTIONS) {
-                endGame();
-            } else {
-                loadNextQuestion();
-            }
-        };
-        setTimeout(nextAction, 1800);
+        setFeedback(`No attempts left. The answer was ${correctAnswer}. Streak reset.`, 'error');
+        updateScoreboard();
+        setTimeout(goToNextQuestion, 1800);
         return;
     }
 
+    updateScoreboard();
     let message = 'Not quite. Please try again.';
     if (bookCorrect && (!chapterCorrect || !verseCorrect)) {
-        message = `Right book (${state.currentVerse.book}), but wrong chapter or verse. ${state.attemptsLeft} attempt(s) left.`;
+        message = `Right book (${state.currentVerse.book}), but wrong chapter or verse. ${state.attemptsLeft} attempt(s) left. Now worth ${getRoundValue()} points.`;
     } else if (!bookCorrect) {
-        message = `That answer is not correct. ${state.attemptsLeft} attempt(s) remaining.`;
+        message = `That answer is not correct. ${state.attemptsLeft} attempt(s) remaining. Now worth ${getRoundValue()} points.`;
     }
     setFeedback(message, 'warning');
     setSubmitState(true);
@@ -608,15 +755,11 @@ function handleSkip() {
     setSubmitState(false);
     state.incorrectAnswers += 1;
     state.currentQuestion += 1;
+    state.streak = 0;
+    updateScoreboard();
     const skippedAnswer = `${state.currentVerse.book} ${state.currentVerse.chapter}:${state.currentVerse.verse}`;
-    setFeedback(`Skipped. The answer was ${skippedAnswer}.`, 'warning');
-    setTimeout(() => {
-        if (state.currentQuestion >= MAX_QUESTIONS) {
-            endGame();
-        } else {
-            loadNextQuestion();
-        }
-    }, 1800);
+    setFeedback(`Skipped (0 points, streak reset). The answer was ${skippedAnswer}.`, 'warning');
+    setTimeout(goToNextQuestion, 1800);
 }
 
 function showQuitModal(show) {
@@ -648,7 +791,7 @@ async function savePlayerScore() {
         ? Math.round((state.correctAnswers / totalAnswered) * 100)
         : 0;
     const today = getTodayKey();
-    const playerName = (user.displayName || 'Player').slice(0, MAX_NAME_LENGTH);
+    const playerName = getPlayerName(user);
 
     submitScoreButton.disabled = true;
     scoreSaveMessage.textContent = 'Saving your score...';
@@ -681,6 +824,124 @@ async function savePlayerScore() {
     }
 }
 
+function toggleModal(modal, show) {
+    modal.classList.toggle('hidden', !show);
+}
+
+function renderAvatar(element, avatarType, avatarValue) {
+    element.replaceChildren();
+    if (avatarType === 'image' && avatarValue.startsWith('data:image/')) {
+        const image = document.createElement('img');
+        image.src = avatarValue;
+        image.alt = 'Profile picture';
+        element.appendChild(image);
+    } else {
+        element.textContent = avatarValue;
+    }
+}
+
+function renderProfile() {
+    renderAvatar(profileChipAvatar, profile.avatarType, profile.avatarValue);
+    profileChipName.textContent = profile.username || 'Profile';
+}
+
+function openProfile() {
+    draftAvatar = { avatarType: profile.avatarType, avatarValue: profile.avatarValue };
+    profileNameInput.value = profile.username;
+    profileMessage.textContent = '';
+    renderAvatar(profileAvatarPreview, draftAvatar.avatarType, draftAvatar.avatarValue);
+    toggleModal(profileModal, true);
+}
+
+function chooseEmojiAvatar(emoji) {
+    draftAvatar = { avatarType: 'emoji', avatarValue: emoji };
+    renderAvatar(profileAvatarPreview, draftAvatar.avatarType, draftAvatar.avatarValue);
+}
+
+function resizeImageToDataUrl(file, size, onDone, onError) {
+    const reader = new FileReader();
+    reader.onerror = onError;
+    reader.onload = () => {
+        const image = new Image();
+        image.onerror = onError;
+        image.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const side = Math.min(image.width, image.height);
+                const startX = (image.width - side) / 2;
+                const startY = (image.height - side) / 2;
+                canvas.getContext('2d').drawImage(image, startX, startY, side, side, 0, 0, size, size);
+                onDone(canvas.toDataURL('image/jpeg', 0.8));
+            } catch (error) {
+                onError(error);
+            }
+        };
+        image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function handleAvatarUpload() {
+    const file = avatarUploadInput.files[0];
+    avatarUploadInput.value = '';
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+        profileMessage.textContent = 'Please choose a JPG, PNG, WEBP, or GIF picture.';
+        return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+        profileMessage.textContent = 'That picture is too big. Please choose one under 5 MB.';
+        return;
+    }
+
+    profileMessage.textContent = 'Loading picture...';
+    resizeImageToDataUrl(
+        file,
+        AVATAR_SIZE,
+        dataUrl => {
+            draftAvatar = { avatarType: 'image', avatarValue: dataUrl };
+            renderAvatar(profileAvatarPreview, draftAvatar.avatarType, draftAvatar.avatarValue);
+            profileMessage.textContent = 'Picture ready. Click Save to keep it.';
+        },
+        () => {
+            profileMessage.textContent = 'That picture could not be loaded. Try another one.';
+        }
+    );
+}
+
+function saveProfile() {
+    profile.username = profileNameInput.value.trim().slice(0, MAX_NAME_LENGTH);
+    profile.avatarType = draftAvatar.avatarType;
+    profile.avatarValue = draftAvatar.avatarValue;
+    const saved = saveStored(PROFILE_KEY, profile);
+    renderProfile();
+    updateAuthUI(auth.currentUser);
+    profileMessage.textContent = saved
+        ? 'Profile saved!'
+        : 'Could not save on this device (storage is full or blocked).';
+}
+
+function updateVolumeLabels() {
+    soundVolumeLabel.textContent = `${soundVolume}%`;
+    musicVolumeLabel.textContent = `${musicVolume}%`;
+}
+
+function handleSoundVolumeChange() {
+    soundVolume = clampVolume(soundVolumeSlider.value, soundVolume);
+    updateVolumeLabels();
+    saveStored(SETTINGS_KEY, { soundVolume, musicVolume });
+}
+
+function handleMusicVolumeChange() {
+    musicVolume = clampVolume(musicVolumeSlider.value, musicVolume);
+    updateVolumeLabels();
+    saveStored(SETTINGS_KEY, { soundVolume, musicVolume });
+}
+
 function goHome() {
     resetInputs();
     setFeedback('', 'neutral');
@@ -696,6 +957,7 @@ function attachEventHandlers() {
     confirmQuit.addEventListener('click', confirmQuitGame);
     submitButton.addEventListener('click', handleSubmitAnswer);
     skipButton.addEventListener('click', handleSkip);
+    hintButton.addEventListener('click', handleHint);
     submitScoreButton.addEventListener('click', savePlayerScore);
     goHomeButton.addEventListener('click', goHome);
     homeLoginButton.addEventListener('click', () => openAuthScreen('home'));
@@ -709,10 +971,36 @@ function attachEventHandlers() {
     authPasswordInput.addEventListener('keydown', event => {
         if (event.key === 'Enter') handleLogin();
     });
+    openProfileButton.addEventListener('click', openProfile);
+    openSettingsButton.addEventListener('click', () => toggleModal(settingsModal, true));
+    profileSaveButton.addEventListener('click', saveProfile);
+    profileCloseButton.addEventListener('click', () => toggleModal(profileModal, false));
+    settingsCloseButton.addEventListener('click', () => toggleModal(settingsModal, false));
+    avatarUploadInput.addEventListener('change', handleAvatarUpload);
+    avatarOptions.forEach(button => {
+        button.addEventListener('click', () => chooseEmojiAvatar(button.dataset.emoji));
+    });
+    soundVolumeSlider.addEventListener('input', handleSoundVolumeChange);
+    musicVolumeSlider.addEventListener('input', handleMusicVolumeChange);
+    [profileModal, settingsModal].forEach(modal => {
+        modal.addEventListener('click', event => {
+            if (event.target === modal) toggleModal(modal, false);
+        });
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            toggleModal(profileModal, false);
+            toggleModal(settingsModal, false);
+        }
+    });
 }
 
 function initialize() {
     attachEventHandlers();
+    renderProfile();
+    soundVolumeSlider.value = soundVolume;
+    musicVolumeSlider.value = musicVolume;
+    updateVolumeLabels();
     onAuthStateChanged(auth, updateAuthUI);
     showScreen('home');
 }
