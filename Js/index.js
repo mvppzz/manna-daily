@@ -3,9 +3,10 @@ import {
     onAuthStateChanged,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
-    signOut,
-    updateProfile,
-    sendPasswordResetEmail
+    signOut, updateProfile,
+    sendPasswordResetEmail,
+    GoogleAuthProvider,
+    signInWithPopup
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 import {
     collection,
@@ -67,6 +68,7 @@ const authSignupButton = document.getElementById('auth-signup-button');
 const authResetButton = document.getElementById('auth-reset-button');
 const authBackButton = document.getElementById('auth-back-button');
 const authMessage = document.getElementById('auth-message');
+const authGoogleButton = document.getElementById('auth-google-button');
 
 const MAX_QUESTIONS = 10;
 const MAX_ATTEMPTS = 3;
@@ -227,6 +229,23 @@ async function handleLogin() {
     } catch (error) {
         console.error('Login failed:', error);
         setAuthMessage(getAuthErrorMessage(error), 'error');
+    }
+    setAuthBusy(false);
+}
+
+async function handleGoogleLogin() {
+    setAuthBusy(true);
+    setAuthMessage('Opening Google...', 'neutral');
+    try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+        finishAuth();
+    } catch (error) {
+        console.error('Google login failed:', error);
+        if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+            setAuthMessage('', 'neutral');
+        } else {
+            setAuthMessage(getAuthErrorMessage(error), 'error');
+        }
     }
     setAuthBusy(false);
 }
