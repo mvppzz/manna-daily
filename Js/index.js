@@ -71,7 +71,6 @@ const authBackButton = document.getElementById('auth-back-button');
 const authMessage = document.getElementById('auth-message');
 const authGoogleButton = document.getElementById('auth-google-button');
 const streakDisplay = document.getElementById('streak-display');
-const roundValueDisplay = document.getElementById('round-value-display');
 const hintButton = document.getElementById('hint-button');
 const hintReveal = document.getElementById('hint-reveal');
 const settingsButton = document.getElementById('settings-button');
@@ -268,7 +267,6 @@ function updateScoreboard() {
     scoreDisplay.textContent = state.score;
     questionNumber.textContent = Math.min(state.currentQuestion + 1, MAX_QUESTIONS);
     streakDisplay.textContent = state.streak;
-    roundValueDisplay.textContent = getRoundValue();
 }
 
 function resetInputs() {
