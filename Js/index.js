@@ -1,6 +1,12 @@
 import { auth, db } from "./firebase.js";
 import { getAccuracy, reserveFreeplayVerse, shouldEndGame } from "./game-logic.mjs";
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-functions.js";
+import {
+    DAILY_QUESTION_COUNT,
+    generateDistinctVerses,
+    getOrCreateDailyChallenge,
+    getPacificDateKey,
+    validateDailyChallenge
+} from "./daily-challenge.mjs";
 import {
     onAuthStateChanged,
     createUserWithEmailAndPassword,
@@ -22,7 +28,8 @@ import {
     orderBy,
     limit,
     getCountFromServer,
-    serverTimestamp
+    serverTimestamp,
+    runTransaction
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 
 const mainMenu = document.getElementById('main-menu');
@@ -105,7 +112,7 @@ const soundVolumeLabel = document.getElementById('sound-volume-label');
 const musicVolumeLabel = document.getElementById('music-volume-label');
 const settingsCloseButton = document.getElementById('settings-close-button');
 
-const MAX_QUESTIONS = 10;
+const MAX_QUESTIONS = DAILY_QUESTION_COUNT;
 const MAX_ATTEMPTS = 3;
 const MAX_FETCH_RETRIES = 1;
 const FETCH_TIMEOUT_MS = 1500;
@@ -155,8 +162,6 @@ const state = {
 
 let authReturnScreen = 'home';
 let pendingGoogleCredential = null;
-const functions = getFunctions(undefined, 'us-west1');
-const getDailyChallengeCallable = httpsCallable(functions, 'getDailyChallenge');
 
 function loadStored(key, defaults) {
     try {
@@ -273,44 +278,10 @@ function formatDateKey(dateKey) {
     }).format(date);
 }
 
-function getTodayKey() {
-    const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/Los_Angeles',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-    }).formatToParts(new Date());
-    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
-    return `${values.year}-${values.month}-${values.day}`;
-}
-
 function setDailyChallengeMessage(message, type = 'neutral') {
     dailyChallengeMessage.textContent = message;
     dailyChallengeMessage.classList.remove('success', 'warning', 'error');
     dailyChallengeMessage.classList.add(type);
-}
-
-function validateDailyChallenge(challenge) {
-    if (!challenge ||
-        typeof challenge.dateKey !== 'string' ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(challenge.dateKey) ||
-        !Array.isArray(challenge.verses) ||
-        challenge.verses.length !== MAX_QUESTIONS) {
-        return false;
-    }
-    const ids = new Set();
-    return challenge.verses.every(verse => {
-        if (!verse || typeof verse.id !== 'string' ||
-            typeof verse.text !== 'string' || !verse.text.trim() ||
-            typeof verse.book !== 'string' || !verse.book.trim() ||
-            !Number.isInteger(verse.chapter) || verse.chapter < 1 ||
-            !Number.isInteger(verse.verse) || verse.verse < 1 ||
-            ids.has(verse.id)) {
-            return false;
-        }
-        ids.add(verse.id);
-        return true;
-    });
 }
 
 async function loadDailyChallenge() {
@@ -320,11 +291,31 @@ async function loadDailyChallenge() {
     setDailyChallengeMessage('Loading today’s shared challenge…');
 
     try {
-        const response = await getDailyChallengeCallable();
-        const challenge = response.data;
-        if (!validateDailyChallenge(challenge)) {
-            throw new Error('The daily challenge response was invalid.');
-        }
+        const dateKey = getPacificDateKey();
+        const challengeRef = doc(db, 'dailyChallenges', dateKey);
+        const challenge = await getOrCreateDailyChallenge({
+            dateKey,
+            readExisting: async () => {
+                const snapshot = await getDoc(challengeRef);
+                return snapshot.exists() ? snapshot.data() : null;
+            },
+            generateVerses: async () => generateDistinctVerses(async () => {
+                const response = await fetch('https://bible-api.com/?random=verse&translation=kjv', {
+                    signal: AbortSignal.timeout(10000)
+                });
+                if (!response.ok) throw new Error(`Verse API returned HTTP ${response.status}.`);
+                return response.json();
+            }),
+            createIfAbsent: proposed => runTransaction(db, async transaction => {
+                const snapshot = await transaction.get(challengeRef);
+                if (snapshot.exists()) return snapshot.data();
+                transaction.set(challengeRef, {
+                    ...proposed,
+                    createdAt: serverTimestamp()
+                });
+                return proposed;
+            })
+        });
         state.dailyChallenge = challenge;
         dailyChallengeDate.textContent = formatDateKey(challenge.dateKey);
         setDailyChallengeMessage('Today’s challenge is ready.', 'success');
@@ -692,12 +683,17 @@ async function startDailyGame() {
     dailyGameButton.disabled = true;
     setDailyChallengeMessage('Loading today’s shared challenge…');
     try {
-        const response = await getDailyChallengeCallable();
-        const challenge = response.data;
-        if (!validateDailyChallenge(challenge)) {
-            throw new Error('The daily challenge response was invalid.');
+        const dateKey = getPacificDateKey();
+        let challenge = state.dailyChallenge;
+        if (!challenge || challenge.dateKey !== dateKey ||
+            !validateDailyChallenge(challenge, dateKey)) {
+            state.dailyChallenge = null;
+            await loadDailyChallenge();
+            challenge = state.dailyChallenge;
         }
-        state.dailyChallenge = challenge;
+        if (!challenge || !validateDailyChallenge(challenge, dateKey)) {
+            throw new Error('Today’s challenge could not be loaded.');
+        }
         dailyChallengeDate.textContent = formatDateKey(challenge.dateKey);
         setDailyChallengeMessage('Today’s challenge is ready.', 'success');
         startGame('daily', challenge);
@@ -932,9 +928,7 @@ function handleSkip() {
     }
 
     setSubmitState(false);
-    if (state.gameMode === 'daily') {
-        state.incorrectAnswers += 1;
-    }
+    state.incorrectAnswers += 1;
     state.currentQuestion += 1;
     state.streak = 0;
     updateScoreboard();
@@ -983,7 +977,7 @@ async function savePlayerScore() {
 
     const totalAnswered = state.correctAnswers + state.incorrectAnswers;
     const accuracy = getAccuracy(state.correctAnswers, totalAnswered);
-    const today = state.dailyChallenge ? state.dailyChallenge.dateKey : getTodayKey();
+    const today = state.dailyChallenge ? state.dailyChallenge.dateKey : getPacificDateKey();
     const playerName = getPlayerName(user);
 
     submitScoreButton.disabled = true;

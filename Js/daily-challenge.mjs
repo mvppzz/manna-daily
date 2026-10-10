@@ -1,7 +1,7 @@
-const DAILY_QUESTION_COUNT = 10;
-const PACIFIC_TIME_ZONE = 'America/Los_Angeles';
+export const DAILY_QUESTION_COUNT = 10;
+export const PACIFIC_TIME_ZONE = 'America/Los_Angeles';
 
-function getPacificDateKey(date = new Date()) {
+export function getPacificDateKey(date = new Date()) {
     const parts = new Intl.DateTimeFormat('en-US', {
         timeZone: PACIFIC_TIME_ZONE,
         year: 'numeric',
@@ -34,7 +34,7 @@ function normalizeVerse(value) {
     };
 }
 
-function validateChallenge(challenge, expectedDate) {
+export function validateDailyChallenge(challenge, expectedDate) {
     if (!challenge ||
         challenge.dateKey !== expectedDate ||
         challenge.timeZone !== PACIFIC_TIME_ZONE ||
@@ -57,48 +57,45 @@ function validateChallenge(challenge, expectedDate) {
     return true;
 }
 
-async function generateDistinctVerses(fetchRandomVerse, count = DAILY_QUESTION_COUNT) {
+export async function generateDistinctVerses(fetchRandomVerse, count = DAILY_QUESTION_COUNT) {
     const verses = [];
     const ids = new Set();
     const maxAttempts = count * 30;
-
     for (let attempt = 0; attempt < maxAttempts && verses.length < count; attempt += 1) {
         const verse = normalizeVerse(await fetchRandomVerse());
         if (!verse || ids.has(verse.id)) continue;
         ids.add(verse.id);
         verses.push(verse);
     }
-
     if (verses.length !== count) {
         throw new Error(`Could not retrieve ${count} distinct valid verses.`);
     }
     return verses;
 }
 
-async function getOrCreateChallenge(documentRef, buildChallenge) {
-    const current = await documentRef.get();
-    if (current.exists) return current.data();
-
-    const proposed = await buildChallenge();
-    try {
-        await documentRef.create(proposed);
-        return proposed;
-    } catch (error) {
-        if (error.code !== 6 && error.code !== '6' && error.code !== 'already-exists') {
-            throw error;
+export async function getOrCreateDailyChallenge({
+    dateKey,
+    readExisting,
+    generateVerses,
+    createIfAbsent
+}) {
+    const existing = await readExisting();
+    if (existing) {
+        if (!validateDailyChallenge(existing, dateKey)) {
+            throw new Error(`Stored daily challenge ${dateKey} is invalid.`);
         }
-        const winner = await documentRef.get();
-        if (!winner.exists) throw error;
-        return winner.data();
+        return existing;
     }
-}
 
-module.exports = {
-    DAILY_QUESTION_COUNT,
-    PACIFIC_TIME_ZONE,
-    generateDistinctVerses,
-    getOrCreateChallenge,
-    getPacificDateKey,
-    normalizeVerse,
-    validateChallenge
-};
+    const proposed = {
+        challengeId: `pacific-${dateKey}`,
+        dateKey,
+        timeZone: PACIFIC_TIME_ZONE,
+        verses: await generateVerses()
+    };
+    const challenge = await createIfAbsent(proposed);
+    if (!validateDailyChallenge(challenge, dateKey)) {
+        throw new Error(`Stored daily challenge ${dateKey} is invalid.`);
+    }
+    return challenge;
+}

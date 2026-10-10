@@ -3,7 +3,20 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /dailyChallenges/{dateKey} {
       allow read: if true;
-      allow write: if false;
+      allow create: if request.resource.data.keys().hasAll([
+          'challengeId', 'dateKey', 'timeZone', 'verses', 'createdAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'challengeId', 'dateKey', 'timeZone', 'verses', 'createdAt'
+        ])
+        && request.resource.data.challengeId == 'pacific-' + dateKey
+        && request.resource.data.dateKey == dateKey
+        && dateKey.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && request.resource.data.timeZone == 'America/Los_Angeles'
+        && request.resource.data.verses is list
+        && request.resource.data.verses.size() == 10
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
     }
 
     match /scores/{scoreId} {
