@@ -284,6 +284,22 @@ function setDailyChallengeMessage(message, type = 'neutral') {
     dailyChallengeMessage.classList.add(type);
 }
 
+function getDailyChallengeErrorMessage(error) {
+    if (error && (error.code === 'permission-denied' ||
+        error.code === 'firestore/permission-denied')) {
+        return 'Firebase denied access to today’s challenge. Deploy the project Firestore rules, then retry.';
+    }
+    if (error && (error.code === 'failed-precondition' ||
+        error.code === 'firestore/failed-precondition')) {
+        return 'Cloud Firestore is not ready for this project. Check that the Firestore database is set up, then retry.';
+    }
+    if (error && (error.code === 'unavailable' ||
+        error.code === 'firestore/unavailable')) {
+        return 'Firebase is temporarily unavailable. Check your connection and retry.';
+    }
+    return 'Today’s challenge could not be loaded. Check your Firebase setup and connection, then retry.';
+}
+
 async function loadDailyChallenge() {
     dailyGameButton.disabled = true;
     dailyChallengeRetryButton.classList.add('hidden');
@@ -324,7 +340,7 @@ async function loadDailyChallenge() {
         console.error('Daily challenge load failed:', error);
         state.dailyChallenge = null;
         dailyChallengeDate.textContent = 'Date unavailable';
-        setDailyChallengeMessage('Today’s challenge could not be loaded. Check your connection and retry.', 'error');
+        setDailyChallengeMessage(getDailyChallengeErrorMessage(error), 'error');
         dailyChallengeRetryButton.classList.remove('hidden');
     }
 }
@@ -701,7 +717,7 @@ async function startDailyGame() {
         console.error('Could not start daily challenge:', error);
         state.dailyChallenge = null;
         dailyChallengeDate.textContent = 'Date unavailable';
-        setDailyChallengeMessage('Today’s challenge could not be loaded. Check your connection and retry.', 'error');
+        setDailyChallengeMessage(getDailyChallengeErrorMessage(error), 'error');
         dailyChallengeRetryButton.classList.remove('hidden');
         dailyGameButton.disabled = true;
     }
