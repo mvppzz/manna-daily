@@ -74,17 +74,12 @@ const streakDisplay = document.getElementById('streak-display');
 const roundValueDisplay = document.getElementById('round-value-display');
 const hintButton = document.getElementById('hint-button');
 const hintReveal = document.getElementById('hint-reveal');
-const openProfileButton = document.getElementById('open-profile-button');
-const openSettingsButton = document.getElementById('open-settings-button');
-const profileChipAvatar = document.getElementById('profile-chip-avatar');
-const profileChipName = document.getElementById('profile-chip-name');
-const profileModal = document.getElementById('profile-modal');
+const settingsButton = document.getElementById('settings-button');
 const profileAvatarPreview = document.getElementById('profile-avatar-preview');
 const avatarOptions = document.querySelectorAll('.avatar-option');
 const avatarUploadInput = document.getElementById('avatar-upload');
 const profileNameInput = document.getElementById('profile-name-input');
 const profileSaveButton = document.getElementById('profile-save-button');
-const profileCloseButton = document.getElementById('profile-close-button');
 const profileMessage = document.getElementById('profile-message');
 const settingsModal = document.getElementById('settings-modal');
 const soundVolumeSlider = document.getElementById('sound-volume');
@@ -840,17 +835,12 @@ function renderAvatar(element, avatarType, avatarValue) {
     }
 }
 
-function renderProfile() {
-    renderAvatar(profileChipAvatar, profile.avatarType, profile.avatarValue);
-    profileChipName.textContent = profile.username || 'Profile';
-}
-
-function openProfile() {
+function openSettings() {
     draftAvatar = { avatarType: profile.avatarType, avatarValue: profile.avatarValue };
     profileNameInput.value = profile.username;
     profileMessage.textContent = '';
     renderAvatar(profileAvatarPreview, draftAvatar.avatarType, draftAvatar.avatarValue);
-    toggleModal(profileModal, true);
+    toggleModal(settingsModal, true);
 }
 
 function chooseEmojiAvatar(emoji) {
@@ -918,7 +908,6 @@ function saveProfile() {
     profile.avatarType = draftAvatar.avatarType;
     profile.avatarValue = draftAvatar.avatarValue;
     const saved = saveStored(PROFILE_KEY, profile);
-    renderProfile();
     updateAuthUI(auth.currentUser);
     profileMessage.textContent = saved
         ? 'Profile saved!'
@@ -971,10 +960,8 @@ function attachEventHandlers() {
     authPasswordInput.addEventListener('keydown', event => {
         if (event.key === 'Enter') handleLogin();
     });
-    openProfileButton.addEventListener('click', openProfile);
-    openSettingsButton.addEventListener('click', () => toggleModal(settingsModal, true));
+    settingsButton.addEventListener('click', openSettings);
     profileSaveButton.addEventListener('click', saveProfile);
-    profileCloseButton.addEventListener('click', () => toggleModal(profileModal, false));
     settingsCloseButton.addEventListener('click', () => toggleModal(settingsModal, false));
     avatarUploadInput.addEventListener('change', handleAvatarUpload);
     avatarOptions.forEach(button => {
@@ -982,14 +969,13 @@ function attachEventHandlers() {
     });
     soundVolumeSlider.addEventListener('input', handleSoundVolumeChange);
     musicVolumeSlider.addEventListener('input', handleMusicVolumeChange);
-    [profileModal, settingsModal].forEach(modal => {
+    [settingsModal].forEach(modal => {
         modal.addEventListener('click', event => {
             if (event.target === modal) toggleModal(modal, false);
         });
     });
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') {
-            toggleModal(profileModal, false);
             toggleModal(settingsModal, false);
         }
     });
@@ -997,7 +983,6 @@ function attachEventHandlers() {
 
 function initialize() {
     attachEventHandlers();
-    renderProfile();
     soundVolumeSlider.value = soundVolume;
     musicVolumeSlider.value = musicVolume;
     updateVolumeLabels();

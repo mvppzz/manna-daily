@@ -13,6 +13,7 @@
 </head>
 
 <body class="container">
+    <button id="settings-button" class="settings-corner-button" type="button" aria-label="Settings">&#9881;&#65039; Settings</button>
     <div id="main-menu" class="screen screen-home">
         <a href="About.html" class="about-button">About</a>
         <div class="home-panel">
@@ -28,13 +29,6 @@
                     <span id="auth-status" class="auth-status"></span>
                     <button id="home-login-button" class="secondary-button">Log in / Sign up</button>
                     <button id="home-logout-button" class="secondary-button hidden">Log out</button>
-                </div>
-                <div class="profile-bar">
-                    <button id="open-profile-button" class="profile-chip" type="button">
-                        <span id="profile-chip-avatar" class="avatar"></span>
-                        <span id="profile-chip-name">Profile</span>
-                    </button>
-                    <button id="open-settings-button" class="secondary-button" type="button">Settings</button>
                 </div>
             </div>
         </div>
@@ -257,9 +251,11 @@
         </div>
     </div>
 
-    <div id="profile-modal" class="modal hidden">
-        <div class="modal-panel">
-            <h2>Your Profile</h2>
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-panel settings-panel">
+            <h2>Settings</h2>
+
+            <h3 class="settings-heading">Profile</h3>
             <div id="profile-avatar-preview" class="avatar avatar-large"></div>
             <div class="avatar-options">
                 <button type="button" class="avatar-option" data-emoji="📖">📖</button>
@@ -274,17 +270,10 @@
                 <input id="avatar-upload" type="file" accept="image/png, image/jpeg, image/webp, image/gif">
             </label>
             <input id="profile-name-input" type="text" maxlength="20" placeholder="Username (shown on leaderboard)" autocomplete="nickname">
+            <button id="profile-save-button" class="primary-button" type="button">Save profile</button>
             <p id="profile-message" class="feedback-text"></p>
-            <div class="modal-actions">
-                <button id="profile-save-button" class="primary-button" type="button">Save</button>
-                <button id="profile-close-button" class="secondary-button" type="button">Close</button>
-            </div>
-        </div>
-    </div>
 
-    <div id="settings-modal" class="modal hidden">
-        <div class="modal-panel">
-            <h2>Settings</h2>
+            <h3 class="settings-heading">Sound</h3>
             <div class="slider-row">
                 <label for="sound-volume">Sound Effects: <span id="sound-volume-label">70%</span></label>
                 <input id="sound-volume" type="range" min="0" max="100" value="70">
