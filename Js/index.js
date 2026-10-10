@@ -1,4 +1,6 @@
 import { auth, db } from "./firebase.js";
+import { getAccuracy, reserveFreeplayVerse, shouldEndGame } from "./game-logic.mjs";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-functions.js";
 import {
     onAuthStateChanged,
     createUserWithEmailAndPassword,
@@ -23,18 +25,27 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 
-const homeDate = document.querySelector('.home-date');
 const mainMenu = document.getElementById('main-menu');
+const selectionScreen = document.getElementById('selection-screen');
 const gameScreen = document.getElementById('game-screen');
 const resultsScreen = document.getElementById('results-screen');
 const authScreen = document.getElementById('auth-screen');
 const quitModal = document.getElementById('quit-modal');
-const defaultButton = document.getElementById('default-button');
+const homePlayButton = document.getElementById('home-play-button');
+const dailyChallengeDate = document.getElementById('daily-challenge-date');
+const dailyGameButton = document.getElementById('daily-game-button');
+const dailyChallengeMessage = document.getElementById('daily-challenge-message');
+const dailyChallengeRetryButton = document.getElementById('daily-challenge-retry-button');
+const freeplayButton = document.getElementById('freeplay-button');
+const selectionBackButton = document.getElementById('selection-back-button');
+const gameModeLabel = document.getElementById('game-mode-label');
 const quitButton = document.getElementById('quit-button');
+const quitModalMessage = document.getElementById('quit-modal-message');
 const confirmQuit = document.getElementById('confirm-quit');
 const cancelQuit = document.getElementById('cancel-quit');
 const submitButton = document.getElementById('submit-button');
 const skipButton = document.getElementById('skip-button');
+const retryVerseButton = document.getElementById('retry-verse-button');
 const bookSelect = document.getElementById('book-select');
 const chapterInput = document.getElementById('chapter-input');
 const verseInput = document.getElementById('verse-input');
@@ -47,6 +58,13 @@ const finalScore = document.getElementById('final-score');
 const correctCount = document.getElementById('correct-count');
 const incorrectCount = document.getElementById('incorrect-count');
 const accuracyPercentage = document.getElementById('accuracy-percentage');
+const resultsTitle = document.getElementById('results-title');
+const totalAnsweredSummary = document.getElementById('total-answered-summary');
+const totalAnsweredCount = document.getElementById('total-answered-count');
+const dailyResultsSaveSection = document.getElementById('daily-results-save-section');
+const dailyResultsLeaderboard = document.getElementById('daily-results-leaderboard');
+const playAgainButton = document.getElementById('play-again-button');
+const selectionFromResultsButton = document.getElementById('selection-from-results-button');
 const submitScoreButton = document.getElementById('submit-score-button');
 const scoreSaveMessage = document.getElementById('score-save-message');
 const saveLoggedIn = document.getElementById('save-logged-in');
@@ -92,6 +110,7 @@ const MAX_ATTEMPTS = 3;
 const MAX_FETCH_RETRIES = 1;
 const FETCH_TIMEOUT_MS = 1500;
 const FETCH_RETRY_DELAY_MS = 300;
+const TOTAL_KJV_VERSES = 31102;
 const LEADERBOARD_SIZE = 10;
 const MAX_NAME_LENGTH = 20;
 const BASE_SCORE = 1500;
@@ -126,11 +145,18 @@ const state = {
     currentVerse: null,
     gameActive: false,
     streak: 0,
-    hintsUsed: 0
+    hintsUsed: 0,
+    gameMode: 'daily',
+    dailyChallenge: null,
+    freeplayUsedVerseIds: new Set(),
+    sessionGeneration: 0,
+    activeFetchController: null
 };
 
 let authReturnScreen = 'home';
 let pendingGoogleCredential = null;
+const functions = getFunctions(undefined, 'us-west1');
+const getDailyChallengeCallable = httpsCallable(functions, 'getDailyChallenge');
 
 function loadStored(key, defaults) {
     try {
@@ -141,6 +167,15 @@ function loadStored(key, defaults) {
         console.warn('Could not read saved data:', error);
         return { ...defaults };
     }
+}
+
+function scheduleNextQuestion(delay) {
+    const generation = state.sessionGeneration;
+    setTimeout(() => {
+        if (generation === state.sessionGeneration && state.gameActive) {
+            goToNextQuestion();
+        }
+    }, delay);
 }
 
 function saveStored(key, value) {
@@ -221,28 +256,96 @@ function handleHint() {
 }
 
 function goToNextQuestion() {
-    if (state.currentQuestion >= MAX_QUESTIONS) {
+    if (shouldEndGame(state.gameMode, state.currentQuestion, MAX_QUESTIONS)) {
         endGame();
     } else {
         loadNextQuestion();
     }
 }
 
-function updateHomeDate() {
-    if (!homeDate) return;
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    homeDate.textContent = new Date().toLocaleDateString('en-US', options);
+function formatDateKey(dateKey) {
+    const date = new Date(`${dateKey}T12:00:00Z`);
+    return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'UTC'
+    }).format(date);
 }
 
 function getTodayKey() {
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${now.getFullYear()}-${month}-${day}`;
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+}
+
+function setDailyChallengeMessage(message, type = 'neutral') {
+    dailyChallengeMessage.textContent = message;
+    dailyChallengeMessage.classList.remove('success', 'warning', 'error');
+    dailyChallengeMessage.classList.add(type);
+}
+
+function validateDailyChallenge(challenge) {
+    if (!challenge ||
+        typeof challenge.dateKey !== 'string' ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(challenge.dateKey) ||
+        !Array.isArray(challenge.verses) ||
+        challenge.verses.length !== MAX_QUESTIONS) {
+        return false;
+    }
+    const ids = new Set();
+    return challenge.verses.every(verse => {
+        if (!verse || typeof verse.id !== 'string' ||
+            typeof verse.text !== 'string' || !verse.text.trim() ||
+            typeof verse.book !== 'string' || !verse.book.trim() ||
+            !Number.isInteger(verse.chapter) || verse.chapter < 1 ||
+            !Number.isInteger(verse.verse) || verse.verse < 1 ||
+            ids.has(verse.id)) {
+            return false;
+        }
+        ids.add(verse.id);
+        return true;
+    });
+}
+
+async function loadDailyChallenge() {
+    dailyGameButton.disabled = true;
+    dailyChallengeRetryButton.classList.add('hidden');
+    dailyChallengeDate.textContent = 'Loading today’s date…';
+    setDailyChallengeMessage('Loading today’s shared challenge…');
+
+    try {
+        const response = await getDailyChallengeCallable();
+        const challenge = response.data;
+        if (!validateDailyChallenge(challenge)) {
+            throw new Error('The daily challenge response was invalid.');
+        }
+        state.dailyChallenge = challenge;
+        dailyChallengeDate.textContent = formatDateKey(challenge.dateKey);
+        setDailyChallengeMessage('Today’s challenge is ready.', 'success');
+        dailyGameButton.disabled = false;
+    } catch (error) {
+        console.error('Daily challenge load failed:', error);
+        state.dailyChallenge = null;
+        dailyChallengeDate.textContent = 'Date unavailable';
+        setDailyChallengeMessage('Today’s challenge could not be loaded. Check your connection and retry.', 'error');
+        dailyChallengeRetryButton.classList.remove('hidden');
+    }
+}
+
+function openGameSelection() {
+    showScreen('selection');
+    loadDailyChallenge();
 }
 
 function showScreen(screen) {
     mainMenu.classList.toggle('hidden', screen !== 'home');
+    selectionScreen.classList.toggle('hidden', screen !== 'selection');
     gameScreen.classList.toggle('hidden', screen !== 'game');
     resultsScreen.classList.toggle('hidden', screen !== 'results');
     authScreen.classList.toggle('hidden', screen !== 'auth');
@@ -265,7 +368,9 @@ function setFeedback(message, type = 'neutral') {
 
 function updateScoreboard() {
     scoreDisplay.textContent = state.score;
-    questionNumber.textContent = Math.min(state.currentQuestion + 1, MAX_QUESTIONS);
+    questionNumber.textContent = state.gameMode === 'freeplay'
+        ? `${state.currentQuestion + 1} / ∞`
+        : `${Math.min(state.currentQuestion + 1, MAX_QUESTIONS)} / ${MAX_QUESTIONS}`;
     streakDisplay.textContent = state.streak;
 }
 
@@ -330,7 +435,7 @@ function updateAuthUI(user) {
     saveLoggedIn.classList.toggle('hidden', !loggedIn);
     saveLoggedOut.classList.toggle('hidden', loggedIn);
     savePlayerLabel.textContent = loggedIn ? `Saving as ${name}` : '';
-    if (!resultsScreen.classList.contains('hidden')) {
+    if (!resultsScreen.classList.contains('hidden') && state.gameMode === 'daily') {
         renderLeaderboard();
     }
 }
@@ -506,7 +611,7 @@ async function renderLeaderboard() {
     leaderboardCurrentRow.classList.add('hidden');
 
     try {
-        const today = getTodayKey();
+        const today = state.dailyChallenge ? state.dailyChallenge.dateKey : getTodayKey();
         const topQuery = query(
             collection(db, 'scores'),
             where('date', '==', today),
@@ -545,7 +650,12 @@ async function renderLeaderboard() {
     }
 }
 
-function resetGameState() {
+function resetGameState(gameMode, challenge = null) {
+    if (state.activeFetchController) {
+        state.activeFetchController.abort();
+        state.activeFetchController = null;
+    }
+    state.sessionGeneration += 1;
     state.currentQuestion = 0;
     state.score = 0;
     state.correctAnswers = 0;
@@ -554,35 +664,84 @@ function resetGameState() {
     state.currentVerse = null;
     state.streak = 0;
     state.hintsUsed = 0;
+    state.gameMode = gameMode;
+    state.dailyChallenge = challenge;
+    state.freeplayUsedVerseIds = new Set();
     state.gameActive = true;
     hintReveal.textContent = '';
     scoreSaveMessage.textContent = '';
     submitScoreButton.disabled = false;
+    retryVerseButton.classList.add('hidden');
     setSubmitState(false);
     setFeedback('Loading the first verse...', 'neutral');
     resetInputs();
     updateScoreboard();
 }
 
-function startGame() {
+function startGame(gameMode, challenge = null) {
+    resetGameState(gameMode, challenge);
+    gameModeLabel.textContent = gameMode === 'freeplay'
+        ? 'Freeplay — play as long as you like.'
+        : `Today’s shared challenge — ${formatDateKey(challenge.dateKey)}.`;
+    quitButton.textContent = gameMode === 'freeplay' ? 'Quit Freeplay' : 'Quit Game';
     showScreen('game');
-    resetGameState();
     loadNextQuestion();
+}
+
+async function startDailyGame() {
+    dailyGameButton.disabled = true;
+    setDailyChallengeMessage('Loading today’s shared challenge…');
+    try {
+        const response = await getDailyChallengeCallable();
+        const challenge = response.data;
+        if (!validateDailyChallenge(challenge)) {
+            throw new Error('The daily challenge response was invalid.');
+        }
+        state.dailyChallenge = challenge;
+        dailyChallengeDate.textContent = formatDateKey(challenge.dateKey);
+        setDailyChallengeMessage('Today’s challenge is ready.', 'success');
+        startGame('daily', challenge);
+    } catch (error) {
+        console.error('Could not start daily challenge:', error);
+        state.dailyChallenge = null;
+        dailyChallengeDate.textContent = 'Date unavailable';
+        setDailyChallengeMessage('Today’s challenge could not be loaded. Check your connection and retry.', 'error');
+        dailyChallengeRetryButton.classList.remove('hidden');
+        dailyGameButton.disabled = true;
+    }
+}
+
+function startFreeplayGame() {
+    startGame('freeplay');
 }
 
 function endGame() {
     state.gameActive = false;
+    state.sessionGeneration += 1;
+    if (state.activeFetchController) {
+        state.activeFetchController.abort();
+        state.activeFetchController = null;
+    }
     showScreen('results');
+    const isFreeplay = state.gameMode === 'freeplay';
+    resultsTitle.textContent = isFreeplay ? 'Freeplay Results' : 'Game Over';
+    totalAnsweredSummary.classList.toggle('hidden', !isFreeplay);
+    totalAnsweredCount.textContent = state.correctAnswers + state.incorrectAnswers;
+    dailyResultsSaveSection.classList.toggle('hidden', isFreeplay);
+    dailyResultsLeaderboard.classList.toggle('hidden', isFreeplay);
+    playAgainButton.classList.toggle('hidden', !isFreeplay);
+    selectionFromResultsButton.classList.toggle('hidden', !isFreeplay);
+    goHomeButton.classList.toggle('hidden', isFreeplay);
     finalScore.textContent = state.score;
     correctCount.textContent = state.correctAnswers;
     incorrectCount.textContent = state.incorrectAnswers;
     const totalAnswered = state.correctAnswers + state.incorrectAnswers;
-    accuracyPercentage.textContent = totalAnswered > 0 ? `${Math.round((state.correctAnswers / totalAnswered) * 100)}%` : '0%';
-    renderLeaderboard();
+    accuracyPercentage.textContent = `${getAccuracy(state.correctAnswers, totalAnswered)}%`;
+    if (!isFreeplay) renderLeaderboard();
 }
 
 function loadNextQuestion() {
-    if (state.currentQuestion >= MAX_QUESTIONS) {
+    if (shouldEndGame(state.gameMode, state.currentQuestion, MAX_QUESTIONS)) {
         endGame();
         return;
     }
@@ -591,6 +750,7 @@ function loadNextQuestion() {
     state.currentVerse = null;
     state.fetchRetries = 0;
     hintReveal.textContent = '';
+    retryVerseButton.classList.add('hidden');
     resetInputs();
     updateScoreboard();
     verseDisplay.textContent = 'Loading the next verse...';
@@ -600,69 +760,95 @@ function loadNextQuestion() {
 }
 
 function fetchVerse() {
-    const randomBook = books[Math.floor(Math.random() * books.length)];
-    const randomChapter = Math.floor(Math.random() * 3) + 1;
-    const randomVerse = Math.floor(Math.random() * 5) + 1;
-    const apiUrl = `https://bible-api.com/${encodeURIComponent(randomBook)}+${randomChapter}:${randomVerse}?translation=kjv`;
+    const generation = state.sessionGeneration;
+    if (state.gameMode === 'daily') {
+        const verse = state.dailyChallenge && state.dailyChallenge.verses[state.currentQuestion];
+        if (!verse) {
+            showVerseLoadError('Today’s challenge could not be loaded. Return to selection and retry.');
+            return;
+        }
+        displayVerse(verse);
+        return;
+    }
+
     const controller = new AbortController();
-    let isSettled = false;
+    state.activeFetchController = controller;
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-    const timeoutId = setTimeout(() => {
-        if (isSettled) return;
-        controller.abort();
-    }, FETCH_TIMEOUT_MS);
-
-    fetch(apiUrl, { signal: controller.signal })
+    fetch('https://bible-api.com/?random=verse&translation=kjv', { signal: controller.signal })
         .then(response => {
-            if (isSettled) return null;
-            if (!response.ok) {
-                throw new Error(`API Error: Status ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`API Error: Status ${response.status}`);
             return response.json();
         })
         .then(data => {
-            if (!data || isSettled) {
-                return;
-            }
-            if (!data.verses || data.verses.length === 0) {
-                throw new Error('No verse data found in response');
-            }
-            const verseInfo = data.verses[0];
-            isSettled = true;
-            clearTimeout(timeoutId);
-            state.currentVerse = {
-                text: verseInfo.text,
-                book: verseInfo.book_name || data.book_name || '',
-                chapter: parseInt(verseInfo.chapter, 10),
-                verse: parseInt(verseInfo.verse, 10)
+            if (generation !== state.sessionGeneration || !state.gameActive) return;
+            const verses = Array.isArray(data.verses) ? data.verses : [];
+            const verseInfo = verses[0];
+            if (!verseInfo) throw new Error('No verse data found in response.');
+            const verse = {
+                text: String(verseInfo.text || ''),
+                book: String(verseInfo.book_name || data.book_name || ''),
+                chapter: Number(verseInfo.chapter),
+                verse: Number(verseInfo.verse)
             };
-            verseDisplay.textContent = `"${state.currentVerse.text.trim()}"`;
-            hintText.textContent = 'Submit your best guess for this verse.';
-            setFeedback('Ready to answer.', 'neutral');
-            setSubmitState(true);
+            if (!verse.text.trim() || !verse.book || !Number.isInteger(verse.chapter) ||
+                !Number.isInteger(verse.verse)) {
+                throw new Error('The verse service returned an invalid verse.');
+            }
+
+            if (!reserveFreeplayVerse(verse, state.freeplayUsedVerseIds, TOTAL_KJV_VERSES)) {
+                if (state.fetchRetries < 250) {
+                    state.fetchRetries += 1;
+                    fetchVerse();
+                    return;
+                }
+                throw new Error('A new verse could not be found. Please retry.');
+            }
+            displayVerse(verse);
         })
         .catch(error => {
-            if (isSettled) return;
-            isSettled = true;
-            clearTimeout(timeoutId);
-            const isAbort = error.name === 'AbortError';
-            const isNetworkIssue = error.message.includes('Failed to fetch') || error.message.includes('NetworkError');
-            const isRateLimited = error.message.includes('Status 429') || error.message.includes('Status 403');
+            if (generation !== state.sessionGeneration || !state.gameActive) return;
             console.warn('Verse load failed:', error.message || 'Request aborted');
-
-            state.fetchRetries = (state.fetchRetries || 0) + 1;
-            if (state.fetchRetries <= MAX_FETCH_RETRIES || isAbort || isNetworkIssue || isRateLimited) {
-                verseDisplay.textContent = 'Still loading a verse...';
-                setFeedback('The verse service is temporarily unavailable. Retrying...', 'warning');
-                setTimeout(fetchVerse, FETCH_RETRY_DELAY_MS);
+            if (state.fetchRetries < MAX_FETCH_RETRIES) {
+                state.fetchRetries += 1;
+                setFeedback('The verse service is temporarily unavailable. Retrying…', 'warning');
+                setTimeout(() => {
+                    if (generation === state.sessionGeneration) fetchVerse();
+                }, FETCH_RETRY_DELAY_MS);
                 return;
             }
-
-            verseDisplay.textContent = 'Unable to load a verse right now.';
-            hintText.textContent = 'Please try starting the game again.';
-            setFeedback('The verse service is unavailable right now. Please try again.', 'error');
-            setSubmitState(false);
+            showVerseLoadError('The verse service is unavailable right now. Please retry.');
+        })
+        .finally(() => {
+            clearTimeout(timeoutId);
+            if (state.activeFetchController === controller) state.activeFetchController = null;
         });
+}
+
+function displayVerse(verse) {
+    state.currentVerse = verse;
+    verseDisplay.textContent = `"${state.currentVerse.text.trim()}"`;
+    hintText.textContent = 'Submit your best guess for this verse.';
+    setFeedback('Ready to answer.', 'neutral');
+    retryVerseButton.classList.add('hidden');
+    setSubmitState(true);
+}
+
+function showVerseLoadError(message) {
+    verseDisplay.textContent = 'Unable to load a verse right now.';
+    hintText.textContent = 'Please try loading this question again.';
+    setFeedback(message, 'error');
+    setSubmitState(false);
+    retryVerseButton.classList.remove('hidden');
+}
+
+function retryCurrentVerse() {
+    if (!state.gameActive || state.currentVerse) return;
+    state.fetchRetries = 0;
+    retryVerseButton.classList.add('hidden');
+    verseDisplay.textContent = 'Loading the next verse…';
+    setFeedback('Loading a verse…');
+    fetchVerse();
 }
 
 function handleSubmitAnswer() {
@@ -711,7 +897,7 @@ function handleSubmitAnswer() {
         }
         setFeedback(message, 'success');
         updateScoreboard();
-        setTimeout(goToNextQuestion, 1400);
+        scheduleNextQuestion(1400);
         return;
     }
 
@@ -724,7 +910,7 @@ function handleSubmitAnswer() {
         const correctAnswer = `${state.currentVerse.book} ${state.currentVerse.chapter}:${state.currentVerse.verse}`;
         setFeedback(`No attempts left. The answer was ${correctAnswer}. Streak reset.`, 'error');
         updateScoreboard();
-        setTimeout(goToNextQuestion, 1800);
+        scheduleNextQuestion(1800);
         return;
     }
 
@@ -746,13 +932,15 @@ function handleSkip() {
     }
 
     setSubmitState(false);
-    state.incorrectAnswers += 1;
+    if (state.gameMode === 'daily') {
+        state.incorrectAnswers += 1;
+    }
     state.currentQuestion += 1;
     state.streak = 0;
     updateScoreboard();
     const skippedAnswer = `${state.currentVerse.book} ${state.currentVerse.chapter}:${state.currentVerse.verse}`;
     setFeedback(`Skipped (0 points, streak reset). The answer was ${skippedAnswer}.`, 'warning');
-    setTimeout(goToNextQuestion, 1800);
+    scheduleNextQuestion(1800);
 }
 
 function showQuitModal(show) {
@@ -767,8 +955,22 @@ function confirmQuitGame() {
     showQuitModal(false);
     resetInputs();
     setFeedback('', 'neutral');
-    showScreen('home');
     state.gameActive = false;
+    state.sessionGeneration += 1;
+    if (state.activeFetchController) {
+        state.activeFetchController.abort();
+        state.activeFetchController = null;
+    }
+    if (state.gameMode === 'freeplay') {
+        if (state.correctAnswers + state.incorrectAnswers > 0) {
+            endGame();
+        } else {
+            showScreen('selection');
+        }
+        return;
+    }
+    state.currentVerse = null;
+    showScreen('selection');
 }
 
 async function savePlayerScore() {
@@ -780,10 +982,8 @@ async function savePlayerScore() {
     }
 
     const totalAnswered = state.correctAnswers + state.incorrectAnswers;
-    const accuracy = totalAnswered > 0
-        ? Math.round((state.correctAnswers / totalAnswered) * 100)
-        : 0;
-    const today = getTodayKey();
+    const accuracy = getAccuracy(state.correctAnswers, totalAnswered);
+    const today = state.dailyChallenge ? state.dailyChallenge.dateKey : getTodayKey();
     const playerName = getPlayerName(user);
 
     submitScoreButton.disabled = true;
@@ -937,16 +1137,37 @@ function goHome() {
 }
 
 function attachEventHandlers() {
-    updateHomeDate();
-    defaultButton.addEventListener('click', startGame);
-    quitButton.addEventListener('click', () => showQuitModal(true));
+    homePlayButton.addEventListener('click', openGameSelection);
+    dailyGameButton.addEventListener('click', startDailyGame);
+    dailyChallengeRetryButton.addEventListener('click', loadDailyChallenge);
+    freeplayButton.addEventListener('click', startFreeplayGame);
+    selectionBackButton.addEventListener('click', () => showScreen('home'));
+    quitButton.addEventListener('click', () => {
+        if (state.gameMode === 'freeplay' && state.correctAnswers + state.incorrectAnswers === 0) {
+            state.gameActive = false;
+            state.sessionGeneration += 1;
+            if (state.activeFetchController) {
+                state.activeFetchController.abort();
+                state.activeFetchController = null;
+            }
+            showScreen('selection');
+            return;
+        }
+        quitModalMessage.textContent = state.gameMode === 'freeplay'
+            ? `You answered ${state.correctAnswers + state.incorrectAnswers} question(s). Finish this Freeplay session?`
+            : 'Are you sure you want to leave today’s challenge? Your current progress will be lost.';
+        showQuitModal(true);
+    });
     cancelQuit.addEventListener('click', cancelQuitGame);
     confirmQuit.addEventListener('click', confirmQuitGame);
     submitButton.addEventListener('click', handleSubmitAnswer);
     skipButton.addEventListener('click', handleSkip);
+    retryVerseButton.addEventListener('click', retryCurrentVerse);
     hintButton.addEventListener('click', handleHint);
     submitScoreButton.addEventListener('click', savePlayerScore);
     goHomeButton.addEventListener('click', goHome);
+    playAgainButton.addEventListener('click', startFreeplayGame);
+    selectionFromResultsButton.addEventListener('click', openGameSelection);
     homeLoginButton.addEventListener('click', () => openAuthScreen('home'));
     homeLogoutButton.addEventListener('click', handleLogout);
     resultsLoginButton.addEventListener('click', () => openAuthScreen('results'));

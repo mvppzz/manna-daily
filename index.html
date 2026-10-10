@@ -22,8 +22,7 @@
             <h1 class="home-title">MannaDaily</h1>
             <h2>Do you know your verses?</h2>
             <div class="home-actions">
-                <p class="home-date"></p>
-                <button id="default-button" class="primary-button">Play Today's Game</button>
+                <button id="home-play-button" class="primary-button">Play</button>
                 <a href="https://buymeacoffee.com/mannadaily" class="coffee-link">Buy Me Some Nesquick?</a>
                 <div class="auth-bar">
                     <span id="auth-status" class="auth-status"></span>
@@ -32,6 +31,26 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div id="selection-screen" class="screen hidden">
+        <h1>Choose Your Game</h1>
+        <div class="game-mode-options">
+            <section class="game-mode-card">
+                <h2>Play Today’s Game</h2>
+                <p id="daily-challenge-date" class="home-date">Loading today’s date…</p>
+                <p>Play today’s Bible verse guessing challenge. Everyone gets the same ten verses each day!</p>
+                <button id="daily-game-button" class="primary-button">Play Today’s Game</button>
+                <p id="daily-challenge-message" class="feedback-text" role="status" aria-live="polite"></p>
+                <button id="daily-challenge-retry-button" class="secondary-button hidden" type="button">Retry</button>
+            </section>
+            <section class="game-mode-card">
+                <h2>Freeplay</h2>
+                <p>Practice your Bible verse knowledge with endless questions. Play until you’re ready to quit!</p>
+                <button id="freeplay-button" class="primary-button">Freeplay</button>
+            </section>
+        </div>
+        <button id="selection-back-button" class="secondary-button" type="button">Back</button>
     </div>
 
     <div id="game-screen" class="screen hidden">
@@ -43,7 +62,7 @@
                 </div>
                 <div class="status-card">
                     <span class="status-label">Question</span>
-                    <strong><span id="question-number">1</span> / 10</strong>
+                    <strong><span id="question-number">1 / 10</span></strong>
                 </div>
                 <div class="status-card">
                     <span class="status-label">Streak</span>
@@ -52,6 +71,7 @@
             </div>
             <button id="quit-button" class="secondary-button">Quit Game</button>
         </div>
+        <p id="game-mode-label" class="hint-text"></p>
 
         <div class="verse-card">
             <p id="verse-display">Verse text will appear here once the game starts.</p>
@@ -145,12 +165,17 @@
             <button id="hint-button" class="secondary-button" disabled>Hint</button>
             <button id="skip-button" class="secondary-button" disabled>Skip</button>
         </div>
+        <button id="retry-verse-button" class="secondary-button hidden" type="button">Retry loading verse</button>
         <p id="feedback-text" class="feedback-text"></p>
     </div>
 
     <div id="results-screen" class="screen hidden">
-        <h1>Game Over</h1>
+        <h1 id="results-title">Game Over</h1>
         <div class="results-summary">
+            <div id="total-answered-summary" class="summary-card hidden">
+                <p class="summary-label">Questions Answered</p>
+                <strong id="total-answered-count">0</strong>
+            </div>
             <div class="summary-card">
                 <p class="summary-label">Final Score</p>
                 <strong id="final-score">0</strong>
@@ -169,7 +194,7 @@
             </div>
         </div>
 
-        <div class="save-score-section">
+        <div id="daily-results-save-section" class="save-score-section">
             <h2>Save your score</h2>
             <div id="save-logged-in" class="hidden">
                 <p id="save-player-label" class="save-message"></p>
@@ -186,7 +211,7 @@
             <p id="score-save-message" class="save-message"></p>
         </div>
 
-        <div class="leaderboard-card">
+        <div id="daily-results-leaderboard" class="leaderboard-card">
             <h2>Today's Leaderboard</h2>
             <div class="leaderboard-table-wrap">
                 <table id="leaderboard-table">
@@ -213,7 +238,11 @@
             </div>
         </div>
 
-        <button id="go-home-button" class="secondary-button">Go Home</button>
+        <div class="buttons-row results-navigation">
+            <button id="play-again-button" class="primary-button hidden" type="button">Play Again</button>
+            <button id="selection-from-results-button" class="secondary-button hidden" type="button">Return to Game Selection</button>
+            <button id="go-home-button" class="secondary-button">Go Home</button>
+        </div>
     </div>
 
     <div id="auth-screen" class="screen hidden">
@@ -239,7 +268,7 @@
     <div id="quit-modal" class="modal hidden">
         <div class="modal-panel">
             <h2>Quit Game?</h2>
-            <p>Are you sure you want to quit the game? Your current progress will be lost.</p>
+            <p id="quit-modal-message">Are you sure you want to quit the game? Your current progress will be lost.</p>
             <div class="modal-actions">
                 <button id="confirm-quit" class="secondary-button">Yes</button>
                 <button id="cancel-quit" class="secondary-button">No</button>

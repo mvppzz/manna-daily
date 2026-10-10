@@ -127,6 +127,48 @@ h2 {
   gap: 18px;
 }
 
+.game-mode-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 28px 0 20px;
+  text-align: left;
+}
+
+.game-mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px;
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.06);
+}
+
+.game-mode-card h2 {
+  font-size: 1.5rem;
+}
+
+.game-mode-card p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.game-mode-card .primary-button,
+.game-mode-card .secondary-button {
+  align-self: stretch;
+}
+
+.game-mode-card .feedback-text {
+  margin: 0;
+}
+
+.game-mode-card .home-date {
+  font-weight: 700;
+  color: var(--primary);
+}
+
 .buttons-row,
 .save-score-form,
 .modal-actions {
@@ -493,6 +535,10 @@ h2 {
 @media (max-width: 640px) {
   .container {
     padding: 16px;
+  }
+
+  .game-mode-options {
+    grid-template-columns: 1fr;
   }
 
   .about-button {
