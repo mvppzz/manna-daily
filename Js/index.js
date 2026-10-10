@@ -154,6 +154,7 @@ function setAuthMessage(message, type = 'neutral') {
 }
 
 function setAuthBusy(busy) {
+    authGoogleButton.disabled = busy;
     authLoginButton.disabled = busy;
     authSignupButton.disabled = busy;
     authResetButton.disabled = busy;
@@ -179,6 +180,8 @@ function getAuthErrorMessage(error) {
             return 'Network problem. Check your connection and try again.';
         case 'auth/unauthorized-domain':
             return 'This website address is not authorized in Firebase yet.';
+        case 'auth/popup-blocked':
+            return 'The Google window was blocked. Allow pop-ups and try again.';
         default:
             return 'Something went wrong. Please try again.';
     }
@@ -683,6 +686,7 @@ function attachEventHandlers() {
     homeLogoutButton.addEventListener('click', handleLogout);
     resultsLoginButton.addEventListener('click', () => openAuthScreen('results'));
     authLoginButton.addEventListener('click', handleLogin);
+    authGoogleButton.addEventListener('click', handleGoogleLogin);
     authSignupButton.addEventListener('click', handleSignUp);
     authResetButton.addEventListener('click', handlePasswordReset);
     authBackButton.addEventListener('click', () => showScreen(authReturnScreen));
