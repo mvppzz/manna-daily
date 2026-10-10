@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap">
     <link rel="stylesheet" href="Css/stylestuf.css">
+    <link rel="stylesheet" href="Css/new-features.css">
 </head>
 
 <body class="container">
@@ -28,6 +29,13 @@
                     <button id="home-login-button" class="secondary-button">Log in / Sign up</button>
                     <button id="home-logout-button" class="secondary-button hidden">Log out</button>
                 </div>
+                <div class="profile-bar">
+                    <button id="open-profile-button" class="profile-chip" type="button">
+                        <span id="profile-chip-avatar" class="avatar"></span>
+                        <span id="profile-chip-name">Profile</span>
+                    </button>
+                    <button id="open-settings-button" class="secondary-button" type="button">Settings</button>
+                </div>
             </div>
         </div>
     </div>
@@ -43,6 +51,14 @@
                     <span class="status-label">Question</span>
                     <strong><span id="question-number">1</span> / 10</strong>
                 </div>
+                <div class="status-card">
+                    <span class="status-label">Streak</span>
+                    <strong id="streak-display">0</strong>
+                </div>
+                <div class="status-card">
+                    <span class="status-label">Worth</span>
+                    <strong id="round-value-display">1500</strong>
+                </div>
             </div>
             <button id="quit-button" class="secondary-button">Quit Game</button>
         </div>
@@ -51,6 +67,7 @@
             <p id="verse-display">Verse text will appear here once the game starts.</p>
         </div>
         <p id="hint-text" class="hint-text">Choose a book, chapter, and verse to submit your answer.</p>
+        <p id="hint-reveal" class="hint-reveal"></p>
 
         <div class="inputs-row">
             <select id="book-select" class="select-input">
@@ -135,6 +152,7 @@
 
         <div class="buttons-row">
             <button id="submit-button" class="primary-button" disabled>Submit Answer</button>
+            <button id="hint-button" class="secondary-button" disabled>Hint</button>
             <button id="skip-button" class="secondary-button" disabled>Skip</button>
         </div>
         <p id="feedback-text" class="feedback-text"></p>
@@ -235,6 +253,49 @@
             <div class="modal-actions">
                 <button id="confirm-quit" class="secondary-button">Yes</button>
                 <button id="cancel-quit" class="secondary-button">No</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="profile-modal" class="modal hidden">
+        <div class="modal-panel">
+            <h2>Your Profile</h2>
+            <div id="profile-avatar-preview" class="avatar avatar-large"></div>
+            <div class="avatar-options">
+                <button type="button" class="avatar-option" data-emoji="📖">📖</button>
+                <button type="button" class="avatar-option" data-emoji="🕊️">🕊️</button>
+                <button type="button" class="avatar-option" data-emoji="🐑">🐑</button>
+                <button type="button" class="avatar-option" data-emoji="🌾">🌾</button>
+                <button type="button" class="avatar-option" data-emoji="🔥">🔥</button>
+                <button type="button" class="avatar-option" data-emoji="⭐">⭐</button>
+            </div>
+            <label class="upload-label">
+                Or upload your own picture
+                <input id="avatar-upload" type="file" accept="image/png, image/jpeg, image/webp, image/gif">
+            </label>
+            <input id="profile-name-input" type="text" maxlength="20" placeholder="Username (shown on leaderboard)" autocomplete="nickname">
+            <p id="profile-message" class="feedback-text"></p>
+            <div class="modal-actions">
+                <button id="profile-save-button" class="primary-button" type="button">Save</button>
+                <button id="profile-close-button" class="secondary-button" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-panel">
+            <h2>Settings</h2>
+            <div class="slider-row">
+                <label for="sound-volume">Sound Effects: <span id="sound-volume-label">70%</span></label>
+                <input id="sound-volume" type="range" min="0" max="100" value="70">
+            </div>
+            <div class="slider-row">
+                <label for="music-volume">Background Music: <span id="music-volume-label">50%</span></label>
+                <input id="music-volume" type="range" min="0" max="100" value="50">
+            </div>
+            <p class="hint-text">Audio is coming soon. These settings are saved on this device.</p>
+            <div class="modal-actions">
+                <button id="settings-close-button" class="secondary-button" type="button">Close</button>
             </div>
         </div>
     </div>
